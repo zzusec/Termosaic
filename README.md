@@ -26,7 +26,7 @@ Termosaic manages the windows you already have in Apple's built-in `Terminal.app
 
 ## Install
 
-Download the latest macOS zip from GitHub Releases, unzip it, and move `Termosaic.app` to `/Applications`. Because community builds are ad-hoc signed rather than Apple-notarized, macOS may require the first launch through **Control-click → Open**.
+Download the latest **DMG** from GitHub Releases, open it, and drag `Termosaic.app` to the `Applications` shortcut. A zip archive is also provided. Because community builds are ad-hoc signed rather than Apple-notarized, macOS may require the first launch through **Control-click → Open**.
 
 ## Build from source
 
@@ -62,6 +62,15 @@ Keyboard shortcuts while the Termosaic menu is open:
 ## 中文说明
 
 Termosaic 是一个只驻留在 macOS 顶部菜单栏的系统终端窗口管理工具。它会平铺现有的 `Terminal.app` 窗口；新增或关闭窗口后自动重排；隐藏窗口时不会停止正在运行的命令。它不会管理其他应用的窗口。
+
+## Build a DMG
+
+```bash
+./build.sh
+./create-dmg.sh
+```
+
+The DMG and its SHA-256 checksum are written to `dist/`.
 
 ## Tests
 

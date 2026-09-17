@@ -17,3 +17,5 @@ jobs:
         run: SKIP_INSTALL=1 ./build.sh
       - name: Verify architectures
         run: lipo -archs "build/Termosaic.app/Contents/MacOS/Termosaic"
+      - name: Build and verify DMG
+        run: ./create-dmg.sh
