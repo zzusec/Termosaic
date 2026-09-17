@@ -8,7 +8,7 @@ jobs:
   macos:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Test grid layout
         run: |
           swiftc Sources/GridLayout.swift Tests/main.swift -o /tmp/termosaic-grid-tests
