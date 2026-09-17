@@ -1,0 +1,70 @@
+#!/bin/zsh
+set -euo pipefail
+
+ROOT="${0:A:h}"
+BUILD="$ROOT/build"
+APP="$BUILD/Termosaic.app"
+INSTALL_APP="/Applications/Termosaic.app"
+LEGACY_APP="/Applications/Terminal Dashboard.app"
+SDK="$(xcrun --sdk macosx --show-sdk-path)"
+ICONSET="$BUILD/TermosaicIcon.iconset"
+
+if [[ -e "$APP" ]]; then /bin/rm -R "$APP"; fi
+if [[ -e "$ICONSET" ]]; then /bin/rm -R "$ICONSET"; fi
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$ICONSET" "$ROOT/Resources"
+
+swift "$ROOT/Tools/generate_icon.swift" "$ROOT/Resources/TermosaicIcon-1024.png"
+for spec in \
+  "16 icon_16x16.png" \
+  "32 icon_16x16@2x.png" \
+  "32 icon_32x32.png" \
+  "64 icon_32x32@2x.png" \
+  "128 icon_128x128.png" \
+  "256 icon_128x128@2x.png" \
+  "256 icon_256x256.png" \
+  "512 icon_256x256@2x.png" \
+  "512 icon_512x512.png" \
+  "1024 icon_512x512@2x.png"; do
+  size="${spec%% *}"
+  name="${spec#* }"
+  sips -z "$size" "$size" "$ROOT/Resources/TermosaicIcon-1024.png" --out "$ICONSET/$name" >/dev/null
+done
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/TermosaicIcon.icns"
+
+sources=(
+  "$ROOT/Sources/GridLayout.swift"
+  "$ROOT/Sources/TerminalManager.swift"
+  "$ROOT/Sources/TermosaicApp.swift"
+)
+
+for arch in arm64 x86_64; do
+  xcrun swiftc \
+    -sdk "$SDK" \
+    -target "$arch-apple-macos13.0" \
+    -O \
+    -framework SwiftUI \
+    -framework AppKit \
+    -framework ApplicationServices \
+    -framework Combine \
+    "${sources[@]}" \
+    -o "$BUILD/Termosaic-$arch"
+done
+
+lipo -create "$BUILD/Termosaic-arm64" "$BUILD/Termosaic-x86_64" -output "$APP/Contents/MacOS/Termosaic"
+cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
+chmod +x "$APP/Contents/MacOS/Termosaic"
+plutil -lint "$APP/Contents/Info.plist"
+codesign --force --deep --sign - "$APP"
+codesign --verify --deep --strict --verbose=2 "$APP"
+
+if [[ "${SKIP_INSTALL:-0}" != "1" ]]; then
+  pkill -f '^/Applications/Termosaic.app/Contents/MacOS/Termosaic$' 2>/dev/null || true
+  pkill -f '^/Applications/Terminal Dashboard.app/Contents/MacOS/TerminalDashboard$' 2>/dev/null || true
+  if [[ -e "$INSTALL_APP" ]]; then /bin/rm -R "$INSTALL_APP"; fi
+  if [[ -e "$LEGACY_APP" ]]; then /bin/rm -R "$LEGACY_APP"; fi
+  ditto "$APP" "$INSTALL_APP"
+  touch "$INSTALL_APP"
+  echo "Installed: $INSTALL_APP"
+else
+  echo "Built: $APP"
+fi
