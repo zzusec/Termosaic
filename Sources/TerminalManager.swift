@@ -21,9 +21,10 @@ final class TerminalManager: NSObject, ObservableObject {
 
     private let terminalBundleIdentifier = "com.apple.Terminal"
     private let logger = Logger(subsystem: "io.github.zzusec.termosaic", category: "TerminalManager")
-    private let pollInterval: TimeInterval = 1.2
+    private let pollInterval: TimeInterval = 0.2
     private var pollTimer: Timer?
     private var lastObservedWindowCount = -1
+    private var lastWindowServerCandidateCount = -1
     private var targetScreen: NSScreen?
     private var started = false
     private var dashboardRequested = false
@@ -54,6 +55,7 @@ final class TerminalManager: NSObject, ObservableObject {
 
     func showDashboard() {
         dashboardRequested = true
+        lastWindowServerCandidateCount = -1
         targetScreen = screenUnderPointer() ?? NSScreen.main
 
         if let terminal = terminalApplication() {
@@ -159,30 +161,31 @@ final class TerminalManager: NSObject, ObservableObject {
             return
         }
 
-        guard let count = readTerminalWindowCount() else { return }
-        terminalWindowCount = count
-
         if terminal.isHidden {
             dashboardRequested = false
             phase = .hidden
-            lastObservedWindowCount = count
             return
         }
 
-        guard dashboardRequested else {
-            lastObservedWindowCount = count
-            return
-        }
-
+        guard dashboardRequested else { return }
         phase = .visible
-        if count != lastObservedWindowCount {
-            lastObservedWindowCount = count
-            // Both newly opened and closed windows rebalance the complete Terminal window list.
-            tileTerminalWindows(knownCount: count)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
-                guard let self, self.dashboardRequested else { return }
-                self.tileTerminalWindows()
-            }
+
+        // Poll Window Server cheaply for near-instant change detection. Confirm with
+        // Terminal AppleScript only when the candidate count changes, excluding the
+        // small Terminal settings/helper window from the fast count.
+        let candidateCount = windowServerCandidateCount(pid: terminal.processIdentifier)
+        guard candidateCount != lastWindowServerCandidateCount else { return }
+        lastWindowServerCandidateCount = candidateCount
+
+        guard let count = readTerminalWindowCount() else { return }
+        terminalWindowCount = count
+        guard count != lastObservedWindowCount else { return }
+
+        lastObservedWindowCount = count
+        tileTerminalWindows(knownCount: count)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
+            guard let self, self.dashboardRequested else { return }
+            self.tileTerminalWindows()
         }
     }
 
@@ -272,6 +275,24 @@ final class TerminalManager: NSObject, ObservableObject {
 
         guard executeAppleScript(source) != nil else { return }
         phase = .visible
+    }
+
+    private func windowServerCandidateCount(pid: pid_t) -> Int {
+        guard let windows = CGWindowListCopyWindowInfo(
+            [.optionAll, .excludeDesktopElements],
+            kCGNullWindowID
+        ) as? [[String: Any]] else { return lastWindowServerCandidateCount }
+
+        return windows.reduce(into: 0) { count, window in
+            guard (window[kCGWindowOwnerPID as String] as? Int32) == pid,
+                  (window[kCGWindowLayer as String] as? Int) == 0,
+                  let bounds = window[kCGWindowBounds as String] as? [String: Any],
+                  let width = (bounds["Width"] as? NSNumber)?.doubleValue,
+                  let height = (bounds["Height"] as? NSNumber)?.doubleValue,
+                  width >= 300,
+                  height >= 160 else { return }
+            count += 1
+        }
     }
 
     private func readTerminalWindowCount() -> Int? {

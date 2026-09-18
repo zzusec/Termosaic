@@ -12,7 +12,7 @@ Termosaic manages the windows you already have in Apple's built-in `Terminal.app
 - Tiles all existing Terminal windows into a balanced, edge-to-edge grid with no outer margin or inter-window gap.
 - Uses an exact 2×2 layout for four windows and a 3×2 layout for six windows.
 - Restores minimized Terminal windows before including them in the grid.
-- Automatically re-tiles when a Terminal window is opened or closed.
+- Detects opened or closed Terminal windows in about 0.2 seconds and immediately re-tiles the remaining canvas.
 - Hides every Terminal window without stopping the commands running inside.
 - Lives only in the macOS menu bar—no Dock icon and no desktop control window.
 - Treats all Terminal windows as one logical canvas and can hide that canvas automatically when another app becomes active.
