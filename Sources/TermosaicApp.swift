@@ -166,7 +166,9 @@ struct TermosaicApp: App {
             if autoContinue.isEnabled, let nextAttempt = autoContinue.nextAttemptDescription {
                 Text("下次自动重试：\(nextAttempt)")
             }
-            if let sentCount = autoContinue.lastSentCount {
+            if let statusMessage = autoContinue.lastStatusMessage {
+                Text(statusMessage)
+            } else if let sentCount = autoContinue.lastSentCount {
                 Text("上次已发送到 \(sentCount) 个会话")
             }
 

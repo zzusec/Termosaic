@@ -29,7 +29,7 @@ Show every existing Terminal.app shell window as one balanced wall on the curren
 - Never reposition windows belonging to other applications.
 - Remain available only from the macOS menu bar, with no Dock icon or desktop control window.
 - Provide a persisted, configurable global shortcut that shows and forcibly re-tiles the complete Terminal mosaic.
-- Optionally send “继续” to matching Codex/Claude Terminal sessions on a persisted, configurable retry interval.
+- Optionally check matching Codex/Claude Terminal sessions on a persisted interval, send “继续” only while a recognized quota-limit screen is visible, and stop typing after the limit screen disappears.
 
 ## Durable Constraints
 

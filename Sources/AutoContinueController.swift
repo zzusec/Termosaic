@@ -51,6 +51,7 @@ final class AutoContinueController: NSObject, ObservableObject {
     @Published private(set) var nextAttemptAt: Date?
     @Published private(set) var lastAttemptAt: Date?
     @Published private(set) var lastSentCount: Int?
+    @Published private(set) var lastStatusMessage: String?
 
     private var timer: Timer?
     private var started = false
@@ -90,7 +91,7 @@ final class AutoContinueController: NSObject, ObservableObject {
     }
 
     func sendNow() {
-        performAttempt()
+        performAttempt(automatic: false)
     }
 
     var nextAttemptDescription: String? {
@@ -116,16 +117,32 @@ final class AutoContinueController: NSObject, ObservableObject {
     }
 
     @objc private func timerFired() {
-        performAttempt()
+        performAttempt(automatic: true)
     }
 
-    private func performAttempt() {
+    private func performAttempt(automatic: Bool) {
         let sentCount = TerminalManager.shared.sendContinueToTerminalSessions(
-            includeAllWindows: target == .allTerminalWindows
+            includeAllWindows: target == .allTerminalWindows,
+            onlyWhenQuotaBlocked: automatic
         )
         let now = Date()
         lastAttemptAt = now
         lastSentCount = sentCount
+
+        if let sentCount {
+            if automatic, sentCount == 0 {
+                lastStatusMessage = "额度已恢复或未受限，未发送“继续”"
+            } else if automatic {
+                lastStatusMessage = "检测到额度限制，已发送到 \(sentCount) 个会话"
+            } else if sentCount == 0 {
+                lastStatusMessage = "没有找到匹配的 Codex / Claude 会话"
+            } else {
+                lastStatusMessage = "已手动发送到 \(sentCount) 个会话"
+            }
+        } else {
+            lastStatusMessage = "无法检查 Terminal 会话"
+        }
+
         UserDefaults.standard.set(now, forKey: "lastAutoContinueAttempt")
         scheduleNextAttempt()
     }

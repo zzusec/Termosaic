@@ -21,4 +21,4 @@ A quiet, menu-bar-only macOS utility. It must remain available without creating 
 - “隐藏终端” is explicit, while an enabled canvas preference hides the complete Terminal group when another application becomes active.
 - “重新排列” uses the display under the pointer.
 - Automation permission failures explain both the problem and the exact recovery path in System Settings.
-- The menu-bar control is the sole interface and contains every action, status, and global-shortcut choice.
+- The menu-bar control is the sole interface and contains every action, quota-aware retry status, and global-shortcut choice.

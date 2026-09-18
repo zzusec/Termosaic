@@ -17,7 +17,7 @@ Termosaic manages the windows you already have in Apple's built-in `Terminal.app
 - Lives only in the macOS menu bar—no Dock icon and no desktop control window.
 - Treats all Terminal windows as one logical canvas and can hide that canvas automatically when another app becomes active.
 - Provides a configurable global show-and-rearrange shortcut; the default is `⌘O`.
-- Can automatically send `继续` to Codex/Claude Terminal sessions on a configurable retry interval (30 minutes by default).
+- Can conditionally send `继续` to quota-blocked Codex/Claude Terminal sessions on a configurable retry interval (30 minutes by default), and stops typing once the limit screen disappears.
 - Re-tiles onto the display currently under the pointer.
 - Uses only native Swift, SwiftUI, AppKit, and Apple Events automation.
 - Ships as a universal Apple Silicon + Intel app.
@@ -72,12 +72,12 @@ Menu shortcuts:
 
 ## Automatic continue
 
-Termosaic can periodically send `继续` to the active tab of matching Terminal windows. It is enabled by default at a 30-minute interval so rate-limited agent sessions can resume after their availability window resets.
+Termosaic periodically checks the current screen of matching Terminal windows. It sends `继续` only while a recognized quota/rate-limit message is currently visible. Once Codex replies, starts working, or returns to its normal input prompt and the limit screen disappears, Termosaic stops typing. It is enabled by default at a 30-minute check interval.
 
 - Intervals: 5, 10, 15, 30, 45, 60, or 120 minutes
 - Safe default target: windows whose title or process list contains `Codex` or `Claude`
 - Optional target: every Terminal window
-- Manual **立即发送一次“继续”** action
+- Manual **立即发送一次“继续”** action that bypasses quota-screen detection
 - Settings persist across launches
 
 Use the “all Terminal windows” target carefully: normal shell sessions may receive `继续` as a command.
