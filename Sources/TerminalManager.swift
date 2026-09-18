@@ -1,6 +1,6 @@
 @preconcurrency import AppKit
-import ApplicationServices
 import Combine
+import os
 
 @MainActor
 final class TerminalManager: NSObject, ObservableObject {
@@ -8,7 +8,7 @@ final class TerminalManager: NSObject, ObservableObject {
 
     enum Phase: Equatable {
         case starting
-        case needsPermission
+        case needsAutomationPermission
         case hidden
         case visible
         case terminalNotRunning
@@ -17,10 +17,11 @@ final class TerminalManager: NSObject, ObservableObject {
 
     @Published private(set) var phase: Phase = .starting
     @Published private(set) var terminalWindowCount = 0
-    @Published private(set) var accessibilityGranted = AXIsProcessTrusted()
+    @Published private(set) var automationAuthorized = true
 
     private let terminalBundleIdentifier = "com.apple.Terminal"
-    private let pollInterval: TimeInterval = 0.65
+    private let logger = Logger(subsystem: "io.github.zzusec.termosaic", category: "TerminalManager")
+    private let pollInterval: TimeInterval = 1.2
     private var pollTimer: Timer?
     private var lastObservedWindowCount = -1
     private var targetScreen: NSScreen?
@@ -34,7 +35,6 @@ final class TerminalManager: NSObject, ObservableObject {
     func start() {
         guard !started else { return }
         started = true
-        requestAccessibilityPermission(showSystemPrompt: true)
         startPolling()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
@@ -42,18 +42,10 @@ final class TerminalManager: NSObject, ObservableObject {
         }
     }
 
-    func requestAccessibilityPermission(showSystemPrompt: Bool) {
-        let promptKey = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-        accessibilityGranted = AXIsProcessTrustedWithOptions([promptKey: showSystemPrompt] as CFDictionary)
-        if !accessibilityGranted {
-            phase = .needsPermission
-        }
-    }
-
-    func openAccessibilitySettings() {
+    func openAutomationSettings() {
         let candidates = [
-            "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
-            "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Accessibility"
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation",
+            "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Automation"
         ]
         for value in candidates {
             if let url = URL(string: value), NSWorkspace.shared.open(url) { return }
@@ -62,13 +54,6 @@ final class TerminalManager: NSObject, ObservableObject {
 
     func showDashboard() {
         dashboardRequested = true
-        requestAccessibilityPermission(showSystemPrompt: false)
-        guard accessibilityGranted else {
-            phase = .needsPermission
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
-
         targetScreen = screenUnderPointer() ?? NSScreen.main
 
         if let terminal = terminalApplication() {
@@ -81,15 +66,17 @@ final class TerminalManager: NSObject, ObservableObject {
         }
     }
 
+    func hideDashboardIfVisible() {
+        guard dashboardRequested, terminalApplication()?.isHidden == false else { return }
+        hideDashboard(activateManager: false)
+    }
+
     func hideDashboard(activateManager: Bool = true) {
         dashboardRequested = false
         if let terminal = terminalApplication() {
             _ = terminal.hide()
         }
 
-        let count = currentTerminalWindows().count
-        terminalWindowCount = count
-        lastObservedWindowCount = count
         phase = terminalApplication() == nil ? .terminalNotRunning : .hidden
 
         if activateManager {
@@ -106,11 +93,6 @@ final class TerminalManager: NSObject, ObservableObject {
     }
 
     func retile() {
-        requestAccessibilityPermission(showSystemPrompt: false)
-        guard accessibilityGranted else {
-            phase = .needsPermission
-            return
-        }
         if targetScreen == nil {
             targetScreen = screenUnderPointer() ?? NSScreen.main
         }
@@ -120,6 +102,39 @@ final class TerminalManager: NSObject, ObservableObject {
     func useDisplayUnderPointerAndRetile() {
         targetScreen = screenUnderPointer() ?? NSScreen.main
         retile()
+    }
+
+    func sendContinueToTerminalSessions(includeAllWindows: Bool) -> Int? {
+        let sendToAll = includeAllWindows ? "true" : "false"
+        let source = """
+        set sendToAll to \(sendToAll)
+        set sentCount to 0
+        tell application id "com.apple.Terminal"
+            repeat with terminalWindow in every window
+                try
+                    set activeTab to selected tab of terminalWindow
+                    set windowName to name of terminalWindow as text
+                    set processText to (processes of activeTab) as text
+                    set shouldSend to sendToAll
+                    if shouldSend is false then
+                        ignoring case
+                            if windowName contains "codex" or windowName contains "claude" or processText contains "codex" or processText contains "claude" then
+                                set shouldSend to true
+                            end if
+                        end ignoring
+                    end if
+                    if shouldSend then
+                        do script "继续" in activeTab
+                        set sentCount to sentCount + 1
+                    end if
+                end try
+            end repeat
+        end tell
+        return sentCount
+        """
+
+        guard let result = executeAppleScript(source) else { return nil }
+        return Int(result.int32Value)
     }
 
     func prepareForTermination() {
@@ -137,18 +152,6 @@ final class TerminalManager: NSObject, ObservableObject {
     }
 
     @objc private func pollTerminalState() {
-        let trustedNow = AXIsProcessTrusted()
-        if trustedNow != accessibilityGranted {
-            accessibilityGranted = trustedNow
-            if trustedNow, dashboardRequested {
-                showDashboard()
-                return
-            } else if !trustedNow {
-                phase = .needsPermission
-            }
-        }
-
-        guard accessibilityGranted else { return }
         guard let terminal = terminalApplication() else {
             terminalWindowCount = 0
             lastObservedWindowCount = 0
@@ -156,26 +159,27 @@ final class TerminalManager: NSObject, ObservableObject {
             return
         }
 
+        guard let count = readTerminalWindowCount() else { return }
+        terminalWindowCount = count
+
         if terminal.isHidden {
             dashboardRequested = false
             phase = .hidden
-        } else if dashboardRequested {
-            phase = .visible
-        }
-
-        let count = currentTerminalWindows(pid: terminal.processIdentifier).count
-        terminalWindowCount = count
-
-        guard dashboardRequested, !terminal.isHidden else {
             lastObservedWindowCount = count
             return
         }
 
+        guard dashboardRequested else {
+            lastObservedWindowCount = count
+            return
+        }
+
+        phase = .visible
         if count != lastObservedWindowCount {
             lastObservedWindowCount = count
-            // New and closed windows share this path, so both events rebalance the grid.
-            tileTerminalWindows()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) { [weak self] in
+            // Both newly opened and closed windows rebalance the complete Terminal window list.
+            tileTerminalWindows(knownCount: count)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
                 guard let self, self.dashboardRequested else { return }
                 self.tileTerminalWindows()
             }
@@ -211,7 +215,7 @@ final class TerminalManager: NSObject, ObservableObject {
 
     private func scheduleTilePasses() {
         lastObservedWindowCount = -1
-        for delay in [0.18, 0.48, 0.9] {
+        for delay in [0.2, 0.8] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self, self.dashboardRequested else { return }
                 self.tileTerminalWindows()
@@ -219,19 +223,18 @@ final class TerminalManager: NSObject, ObservableObject {
         }
     }
 
-    private func tileTerminalWindows() {
-        guard accessibilityGranted else { return }
-        guard let terminal = terminalApplication() else {
+    private func tileTerminalWindows(knownCount: Int? = nil) {
+        guard terminalApplication() != nil else {
             phase = .terminalNotRunning
             terminalWindowCount = 0
             return
         }
 
-        let windows = currentTerminalWindows(pid: terminal.processIdentifier)
-        terminalWindowCount = windows.count
-        lastObservedWindowCount = windows.count
+        guard let count = knownCount ?? readTerminalWindowCount() else { return }
+        terminalWindowCount = count
+        lastObservedWindowCount = count
 
-        guard !windows.isEmpty else {
+        guard count > 0 else {
             phase = .visible
             return
         }
@@ -240,36 +243,74 @@ final class TerminalManager: NSObject, ObservableObject {
             return
         }
 
-        let frames = GridLayout.frames(count: windows.count, within: screen.visibleFrame, gap: 10)
-        guard frames.count == windows.count else { return }
+        let frames = GridLayout.frames(count: count, within: screen.visibleFrame, gap: 0)
+            .map(accessibilityFrame(from:))
+        guard frames.count == count else { return }
 
-        for (window, cocoaFrame) in zip(windows, frames) {
-            setBooleanAttribute(window, name: kAXMinimizedAttribute, value: false)
-            setFrame(accessibilityFrame(from: cocoaFrame), for: window)
-        }
+        let boundsList = frames.map { frame in
+            let left = Int(frame.minX.rounded())
+            let top = Int(frame.minY.rounded())
+            let right = Int(frame.maxX.rounded())
+            let bottom = Int(frame.maxY.rounded())
+            return "{\(left), \(top), \(right), \(bottom)}"
+        }.joined(separator: ", ")
+
+        let source = """
+        set targetBounds to {\(boundsList)}
+        tell application id "com.apple.Terminal"
+            set windowList to every window
+            repeat with i from 1 to count of targetBounds
+                if i > (count of windowList) then exit repeat
+                set currentWindow to item i of windowList
+                set miniaturized of currentWindow to false
+                set visible of currentWindow to true
+                set bounds of currentWindow to item i of targetBounds
+            end repeat
+        end tell
+        return count of targetBounds
+        """
+
+        guard executeAppleScript(source) != nil else { return }
         phase = .visible
+    }
+
+    private func readTerminalWindowCount() -> Int? {
+        let source = "tell application id \"com.apple.Terminal\" to count every window"
+        guard let result = executeAppleScript(source) else { return nil }
+        return Int(result.int32Value)
+    }
+
+    private func executeAppleScript(_ source: String) -> NSAppleEventDescriptor? {
+        guard let script = NSAppleScript(source: source) else {
+            phase = .error("无法创建 Terminal 自动化脚本")
+            return nil
+        }
+
+        var errorInfo: NSDictionary?
+        logger.debug("Executing Terminal automation script")
+        let result = script.executeAndReturnError(&errorInfo)
+        guard errorInfo == nil else {
+            let number = (errorInfo?[NSAppleScript.errorNumber] as? NSNumber)?.intValue ?? 0
+            let message = (errorInfo?[NSAppleScript.errorMessage] as? String) ?? "未知自动化错误"
+            if number == -1743 {
+                automationAuthorized = false
+                logger.error("Terminal automation permission denied")
+                phase = .needsAutomationPermission
+            } else {
+                logger.error("Terminal automation failed: \(message, privacy: .public)")
+                phase = .error("Terminal 自动化失败：\(message)")
+            }
+            return nil
+        }
+
+        automationAuthorized = true
+        logger.debug("Terminal automation script completed")
+        return result
     }
 
     private func terminalApplication() -> NSRunningApplication? {
         NSRunningApplication.runningApplications(withBundleIdentifier: terminalBundleIdentifier)
             .first(where: { !$0.isTerminated })
-    }
-
-    private func currentTerminalWindows(pid: pid_t? = nil) -> [AXUIElement] {
-        guard accessibilityGranted else { return [] }
-        guard let processID = pid ?? terminalApplication()?.processIdentifier else { return [] }
-
-        let application = AXUIElementCreateApplication(processID)
-        var rawValue: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &rawValue) == .success,
-              let windows = rawValue as? [AXUIElement] else { return [] }
-
-        return windows.filter { window in
-            if booleanAttribute(window, name: kAXModalAttribute) == true { return false }
-            guard stringAttribute(window, name: kAXRoleAttribute) == (kAXWindowRole as String) else { return false }
-            let subrole = stringAttribute(window, name: kAXSubroleAttribute)
-            return subrole == nil || subrole == (kAXStandardWindowSubrole as String)
-        }
     }
 
     private func accessibilityFrame(from cocoaFrame: CGRect) -> CGRect {
@@ -280,35 +321,6 @@ final class TerminalManager: NSObject, ObservableObject {
             width: cocoaFrame.width,
             height: cocoaFrame.height
         )
-    }
-
-    private func setFrame(_ frame: CGRect, for element: AXUIElement) {
-        var size = frame.size
-        var point = frame.origin
-        guard let sizeValue = AXValueCreate(.cgSize, &size),
-              let pointValue = AXValueCreate(.cgPoint, &point) else { return }
-
-        // Terminal quantizes sizes to character cells; a second pass keeps edges aligned.
-        AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, sizeValue)
-        AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, pointValue)
-        AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, sizeValue)
-        AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, pointValue)
-    }
-
-    private func setBooleanAttribute(_ element: AXUIElement, name: String, value: Bool) {
-        AXUIElementSetAttributeValue(element, name as CFString, value ? kCFBooleanTrue : kCFBooleanFalse)
-    }
-
-    private func stringAttribute(_ element: AXUIElement, name: String) -> String? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
-        return value as? String
-    }
-
-    private func booleanAttribute(_ element: AXUIElement, name: String) -> Bool? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
-        return value as? Bool
     }
 
     private func screenUnderPointer() -> NSScreen? {

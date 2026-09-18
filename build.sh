@@ -34,6 +34,8 @@ iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/TermosaicIcon.icns"
 sources=(
   "$ROOT/Sources/GridLayout.swift"
   "$ROOT/Sources/TerminalManager.swift"
+  "$ROOT/Sources/GlobalHotKeyController.swift"
+  "$ROOT/Sources/AutoContinueController.swift"
   "$ROOT/Sources/TermosaicApp.swift"
 )
 
@@ -44,7 +46,6 @@ for arch in arm64 x86_64; do
     -O \
     -framework SwiftUI \
     -framework AppKit \
-    -framework ApplicationServices \
     -framework Combine \
     "${sources[@]}" \
     -o "$BUILD/Termosaic-$arch"

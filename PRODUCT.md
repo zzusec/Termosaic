@@ -8,7 +8,7 @@ Termosaic is a native macOS menu-bar utility.
 
 ## Stack
 
-Swift 6, SwiftUI, AppKit, and the macOS Accessibility API. No third-party runtime dependencies.
+Swift 6, SwiftUI, AppKit, and Apple Events automation. No third-party runtime dependencies.
 
 ## Primary User
 
@@ -21,16 +21,20 @@ Show every existing Terminal.app shell window as one balanced wall on the curren
 ## Confirmed Capabilities
 
 - Manage Apple's system Terminal.app only.
-- Show, hide, and manually re-tile Terminal windows.
+- Show, hide, and manually re-tile Terminal windows with edge-to-edge, zero-gap placement.
 - Automatically re-tile when a Terminal window is added or closed.
+- Restore minimized Terminal windows and include them in the grid.
 - Keep Terminal processes running while their windows are hidden.
+- Treat Terminal windows as one logical canvas and optionally hide the canvas when another application becomes active.
 - Never reposition windows belonging to other applications.
 - Remain available only from the macOS menu bar, with no Dock icon or desktop control window.
+- Provide a persisted, configurable global shortcut that shows and forcibly re-tiles the complete Terminal mosaic.
+- Optionally send “继续” to matching Codex/Claude Terminal sessions on a persisted, configurable retry interval.
 
 ## Durable Constraints
 
 - Existing Terminal sessions remain owned by Terminal.app; the utility does not embed or migrate shells.
-- Window movement requires the macOS Accessibility permission.
+- Window movement requires permission for Termosaic to automate Apple Terminal.
 - Interacting with a tiled terminal naturally makes Terminal.app the active application; the manager remains available from its menu-bar item.
 - The utility must not require a third-party window manager or terminal emulator.
 

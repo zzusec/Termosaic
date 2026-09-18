@@ -9,19 +9,23 @@ Termosaic manages the windows you already have in Apple's built-in `Terminal.app
 
 ## Features
 
-- Tiles all existing Terminal windows into a balanced grid.
-- Uses an exact 2×2 layout for four windows.
+- Tiles all existing Terminal windows into a balanced, edge-to-edge grid with no outer margin or inter-window gap.
+- Uses an exact 2×2 layout for four windows and a 3×2 layout for six windows.
+- Restores minimized Terminal windows before including them in the grid.
 - Automatically re-tiles when a Terminal window is opened or closed.
 - Hides every Terminal window without stopping the commands running inside.
 - Lives only in the macOS menu bar—no Dock icon and no desktop control window.
+- Treats all Terminal windows as one logical canvas and can hide that canvas automatically when another app becomes active.
+- Provides a configurable global show-and-rearrange shortcut; the default is `⌘O`.
+- Can automatically send `继续` to Codex/Claude Terminal sessions on a configurable retry interval (30 minutes by default).
 - Re-tiles onto the display currently under the pointer.
-- Uses only native Swift, SwiftUI, AppKit, and Accessibility APIs.
+- Uses only native Swift, SwiftUI, AppKit, and Apple Events automation.
 - Ships as a universal Apple Silicon + Intel app.
 
 ## Requirements
 
 - macOS 13 or later.
-- Accessibility permission, used only to read and move Terminal windows.
+- Automation permission to control Apple Terminal windows.
 - Xcode Command Line Tools when building from source.
 
 ## Install
@@ -40,10 +44,10 @@ The app is installed at:
 /Applications/Termosaic.app
 ```
 
-On first launch, enable **Termosaic** under:
+On first launch, allow **Termosaic** to control **Terminal**. You can review this permission under:
 
 ```text
-System Settings → Privacy & Security → Accessibility
+System Settings → Privacy & Security → Automation → Termosaic → Terminal
 ```
 
 ## Usage
@@ -51,13 +55,32 @@ System Settings → Privacy & Security → Accessibility
 1. Launch Termosaic. A four-tile icon appears in the menu bar.
 2. Choose **显示并平铺** to reveal and tile all Terminal windows.
 3. Open a Terminal window with `⌘N`, or close one. The grid updates automatically.
-4. Choose **隐藏终端** to clear the workspace while terminal processes continue running.
+4. Switch to another application to hide the Terminal canvas automatically, or choose **隐藏终端** manually. Terminal processes continue running.
 
-Keyboard shortcuts while the Termosaic menu is open:
+Global shortcut:
+
+- `⌘O` — show and immediately re-tile every Terminal window from any application (default)
+- Change it from the menu to `⌥⌘O`, `⇧⌘O`, or `⌃⌥⌘O`, or disable it
+
+Menu shortcuts:
 
 - `⌥⌘1` — show and tile
 - `⌥⌘2` — hide Terminal
 - `⌥⌘3` — re-tile on the display under the pointer
+
+> `⌘O` normally means “Open” in macOS apps. Choose one of the alternative global shortcuts if you want to preserve that command.
+
+## Automatic continue
+
+Termosaic can periodically send `继续` to the active tab of matching Terminal windows. It is enabled by default at a 30-minute interval so rate-limited agent sessions can resume after their availability window resets.
+
+- Intervals: 5, 10, 15, 30, 45, 60, or 120 minutes
+- Safe default target: windows whose title or process list contains `Codex` or `Claude`
+- Optional target: every Terminal window
+- Manual **立即发送一次“继续”** action
+- Settings persist across launches
+
+Use the “all Terminal windows” target carefully: normal shell sessions may receive `继续` as a command.
 
 ## 中文说明
 
@@ -79,9 +102,13 @@ swiftc Sources/GridLayout.swift Tests/main.swift -o /tmp/termosaic-grid-tests
 /tmp/termosaic-grid-tests
 ```
 
+## System Terminal limitation
+
+Termosaic does not modify Terminal profiles or default window-creation settings. Separate system Terminal windows retain the macOS title bar with the red, yellow, and green controls because that window chrome is owned by `Terminal.app`. Termosaic removes its own layout margins and places window frames edge to edge, but it does not inject code into or patch the system Terminal application.
+
 ## Privacy
 
-Termosaic has no analytics, networking, account system, or data collection. Accessibility access is used locally to read, move, resize, minimize, and reveal Apple Terminal windows.
+Termosaic has no analytics, networking, account system, or data collection. Apple Events automation is used locally only to count, restore, move, resize, and send explicitly configured retry text to Apple Terminal windows.
 
 ## License
 

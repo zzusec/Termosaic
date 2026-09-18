@@ -35,8 +35,27 @@ let five = GridLayout.frames(count: 5, within: bounds, gap: 10)
 expect(five.count == 5, "five windows should produce five frames")
 expect(five[3].width > five[0].width, "incomplete final row should use the available width")
 
+let six = GridLayout.frames(count: 6, within: bounds, gap: 10)
+expect(six.count == 6, "six windows should produce six frames")
+let sixWidths = six.map { Int($0.width) }
+let sixHeights = six.map { Int($0.height) }
+expect((sixWidths.max() ?? 0) - (sixWidths.min() ?? 0) <= 1, "six-window column widths should differ by at most one pixel")
+expect((sixHeights.max() ?? 0) - (sixHeights.min() ?? 0) <= 1, "six-window row heights should differ by at most one pixel")
+
+let macBookVisibleFrame = CGRect(x: 0, y: 80, width: 1470, height: 843)
+let sixZeroGap = GridLayout.frames(count: 6, within: macBookVisibleFrame, gap: 0)
+expect(sixZeroGap.count == 6, "zero-gap six-window layout should produce six frames")
+for index in sixZeroGap.indices {
+    expect(macBookVisibleFrame.contains(sixZeroGap[index]), "zero-gap frame \(index) must remain inside the visible screen")
+    for other in sixZeroGap.indices where other > index {
+        expect(!overlaps(sixZeroGap[index], sixZeroGap[other]), "zero-gap frames \(index) and \(other) must not overlap")
+    }
+}
+expect(sixZeroGap[0].maxX == sixZeroGap[1].minX, "top-row windows should touch exactly")
+expect(sixZeroGap[0].minY == sixZeroGap[3].maxY, "top and bottom rows should touch exactly")
+
 let afterClose = GridLayout.frames(count: 3, within: bounds, gap: 10)
 expect(afterClose.count == 3, "closing a window should yield a complete three-window layout")
 expect(afterClose[2].width > afterClose[0].width, "remaining final-row window should expand after close")
 
-print("GridLayout tests passed (1, 3, 4, and 5 window cases).")
+print("GridLayout tests passed (1, 3, 4, 5, and 6 window cases).")
