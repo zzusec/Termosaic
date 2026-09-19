@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         GlobalHotKeyController.shared.activateSavedShortcut()
         TerminalManager.shared.start()
         AutoContinueController.shared.start()
+        UpdateController.shared.start()
     }
 
     @objc private func workspaceDidActivateApplication(_ notification: Notification) {
@@ -35,7 +36,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        TerminalManager.shared.prepareForTermination()
+        if !UpdateController.shared.isInstallingUpdate {
+            TerminalManager.shared.prepareForTermination()
+        }
     }
 }
 
@@ -45,6 +48,7 @@ struct TermosaicApp: App {
     @StateObject private var manager = TerminalManager.shared
     @StateObject private var hotKeys = GlobalHotKeyController.shared
     @StateObject private var autoContinue = AutoContinueController.shared
+    @StateObject private var updater = UpdateController.shared
     @AppStorage("hideTerminalOnQuit") private var hideTerminalOnQuit = true
     @AppStorage("autoHideCanvasWhenSwitchingApps") private var autoHideCanvasWhenSwitchingApps = true
 
@@ -177,6 +181,47 @@ struct TermosaicApp: App {
                 Text("需要允许 Termosaic 控制系统 Terminal")
                 Button("打开自动化设置…") {
                     manager.openAutomationSettings()
+                }
+            }
+
+            Divider()
+            Menu {
+                Text(updater.statusMessage)
+
+                if let version = updater.availableVersion {
+                    Button("立即更新到 v\(version)") {
+                        updater.installAvailableUpdate()
+                    }
+                    .disabled(updater.isDownloading || updater.isInstallingUpdate)
+                    Divider()
+                }
+
+                Button(updater.isChecking ? "正在检查…" : "立即检查更新") {
+                    updater.checkForUpdates()
+                }
+                .disabled(updater.isChecking || updater.isDownloading || updater.isInstallingUpdate)
+
+                Toggle(
+                    "自动检查更新",
+                    isOn: Binding(
+                        get: { updater.automaticChecksEnabled },
+                        set: { updater.setAutomaticChecksEnabled($0) }
+                    )
+                )
+                Toggle(
+                    "自动下载并安装",
+                    isOn: Binding(
+                        get: { updater.automaticInstallationEnabled },
+                        set: { updater.setAutomaticInstallationEnabled($0) }
+                    )
+                )
+            } label: {
+                if let version = updater.availableVersion {
+                    Label("新版本 v\(version) 可用", systemImage: "arrow.down.circle.fill")
+                } else if updater.isChecking || updater.isDownloading {
+                    Label("正在检查软件更新", systemImage: "arrow.triangle.2.circlepath")
+                } else {
+                    Label("软件更新", systemImage: "arrow.down.circle")
                 }
             }
 

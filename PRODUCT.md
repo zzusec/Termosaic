@@ -22,12 +22,13 @@ Show every existing Terminal.app shell window as one balanced wall on the curren
 
 - Manage Apple's system Terminal.app only.
 - Show, hide, and manually re-tile Terminal windows with edge-to-edge, zero-gap placement.
-- Automatically re-tile when a Terminal window is added or closed.
+- Automatically re-tile when a Terminal window is added or closed, preserving stable window identity and assigning positions clockwise.
 - Restore minimized Terminal windows and include them in the grid.
 - Keep Terminal processes running while their windows are hidden.
 - Treat Terminal windows as one logical canvas and optionally hide the canvas when another application becomes active.
 - Never reposition windows belonging to other applications.
 - Remain available only from the macOS menu bar, with no Dock icon or desktop control window.
+- Check public GitHub Releases online and securely stage, validate, replace, and relaunch newer Termosaic versions.
 - Provide a persisted, configurable global shortcut that shows and forcibly re-tiles the complete Terminal mosaic.
 - Optionally check matching Codex/Claude Terminal sessions on a persisted interval, send “继续” only while a recognized quota-limit screen is visible, and stop typing after the limit screen disappears.
 

@@ -13,11 +13,13 @@ Termosaic manages the windows you already have in Apple's built-in `Terminal.app
 - Uses an exact 2×2 layout for four windows and a 3×2 layout for six windows.
 - Restores minimized Terminal windows before including them in the grid.
 - Detects opened or closed Terminal windows in about 0.2 seconds and immediately re-tiles the remaining canvas.
+- Preserves stable window IDs and assigns positions clockwise; new windows append to the end of the clockwise sequence.
 - Hides every Terminal window without stopping the commands running inside.
 - Lives only in the macOS menu bar—no Dock icon and no desktop control window.
 - Treats all Terminal windows as one logical canvas and can hide that canvas automatically when another app becomes active.
 - Provides a configurable global show-and-rearrange shortcut; the default is `⌘O`.
 - Can conditionally send `继续` to quota-blocked Codex/Claude Terminal sessions on a configurable retry interval (30 minutes by default), and stops typing once the limit screen disappears.
+- Checks GitHub Releases online and can download, verify, install, and relaunch updates automatically.
 - Re-tiles onto the display currently under the pointer.
 - Uses only native Swift, SwiftUI, AppKit, and Apple Events automation.
 - Ships as a universal Apple Silicon + Intel app.
@@ -31,6 +33,22 @@ Termosaic manages the windows you already have in Apple's built-in `Terminal.app
 ## Install
 
 Download the latest **DMG** from GitHub Releases, open it, and drag `Termosaic.app` to the `Applications` shortcut. A zip archive is also provided. Because community builds are ad-hoc signed rather than Apple-notarized, macOS may require the first launch through **Control-click → Open**.
+
+## Online updates
+
+Termosaic checks the latest public GitHub Release shortly after launch and every six hours. Automatic checking and automatic installation are enabled by default and can be changed from the menu. Update availability and actions stay inside a compact menu-bar submenu; Termosaic does not show an intrusive desktop update modal.
+
+Before replacing the installed app, the updater:
+
+1. Downloads the versioned DMG and matching `.sha256` asset over HTTPS.
+2. Verifies the DMG SHA-256 checksum.
+3. Mounts the DMG read-only.
+4. Verifies the staged app uses bundle ID `io.github.zzusec.termosaic` and a newer matching version.
+5. Runs strict recursive `codesign` verification.
+6. Starts a separate universal update helper, exits Termosaic without hiding Terminal windows, backs up the current app, installs the new copy, and relaunches it.
+7. Restores the backup if replacement or launch fails.
+
+The automatic installer requires Termosaic to be installed at `/Applications/Termosaic.app` and the current user to have write access to that application. This community build remains ad-hoc signed and is not Apple-notarized.
 
 ## Build from source
 

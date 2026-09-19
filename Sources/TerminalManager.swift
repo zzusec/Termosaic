@@ -25,6 +25,7 @@ final class TerminalManager: NSObject, ObservableObject {
     private var pollTimer: Timer?
     private var lastObservedWindowCount = -1
     private var lastWindowServerCandidateCount = -1
+    private var orderedWindowIDs: [Int] = []
     private var targetScreen: NSScreen?
     private var started = false
     private var dashboardRequested = false
@@ -189,12 +190,13 @@ final class TerminalManager: NSObject, ObservableObject {
         guard candidateCount != lastWindowServerCandidateCount else { return }
         lastWindowServerCandidateCount = candidateCount
 
-        guard let count = readTerminalWindowCount() else { return }
+        guard let windowIDs = readTerminalWindowIDs() else { return }
+        let count = windowIDs.count
         terminalWindowCount = count
         guard count != lastObservedWindowCount else { return }
 
         lastObservedWindowCount = count
-        tileTerminalWindows(knownCount: count)
+        tileTerminalWindows(knownWindowIDs: windowIDs)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
             guard let self, self.dashboardRequested else { return }
             self.tileTerminalWindows()
@@ -238,14 +240,16 @@ final class TerminalManager: NSObject, ObservableObject {
         }
     }
 
-    private func tileTerminalWindows(knownCount: Int? = nil) {
+    private func tileTerminalWindows(knownWindowIDs: [Int]? = nil) {
         guard terminalApplication() != nil else {
             phase = .terminalNotRunning
             terminalWindowCount = 0
             return
         }
 
-        guard let count = knownCount ?? readTerminalWindowCount() else { return }
+        guard let currentWindowIDs = knownWindowIDs ?? readTerminalWindowIDs() else { return }
+        let windowIDs = stableWindowOrder(currentWindowIDs: currentWindowIDs)
+        let count = windowIDs.count
         terminalWindowCount = count
         lastObservedWindowCount = count
 
@@ -258,10 +262,11 @@ final class TerminalManager: NSObject, ObservableObject {
             return
         }
 
-        let frames = GridLayout.frames(count: count, within: screen.visibleFrame, gap: 0)
+        let frames = GridLayout.clockwiseFrames(count: count, within: screen.visibleFrame, gap: 0)
             .map(accessibilityFrame(from:))
         guard frames.count == count else { return }
 
+        let windowIDList = windowIDs.map(String.init).joined(separator: ", ")
         let boundsList = frames.map { frame in
             let left = Int(frame.minX.rounded())
             let top = Int(frame.minY.rounded())
@@ -271,15 +276,17 @@ final class TerminalManager: NSObject, ObservableObject {
         }.joined(separator: ", ")
 
         let source = """
+        set targetWindowIDs to {\(windowIDList)}
         set targetBounds to {\(boundsList)}
         tell application id "com.apple.Terminal"
-            set windowList to every window
-            repeat with i from 1 to count of targetBounds
-                if i > (count of windowList) then exit repeat
-                set currentWindow to item i of windowList
-                set miniaturized of currentWindow to false
-                set visible of currentWindow to true
-                set bounds of currentWindow to item i of targetBounds
+            repeat with i from 1 to count of targetWindowIDs
+                try
+                    set currentID to item i of targetWindowIDs
+                    set currentWindow to first window whose id is currentID
+                    set miniaturized of currentWindow to false
+                    set visible of currentWindow to true
+                    set bounds of currentWindow to item i of targetBounds
+                end try
             end repeat
         end tell
         return count of targetBounds
@@ -307,10 +314,25 @@ final class TerminalManager: NSObject, ObservableObject {
         }
     }
 
-    private func readTerminalWindowCount() -> Int? {
-        let source = "tell application id \"com.apple.Terminal\" to count every window"
+    private func readTerminalWindowIDs() -> [Int]? {
+        let source = "tell application id \"com.apple.Terminal\" to get id of every window"
         guard let result = executeAppleScript(source) else { return nil }
-        return Int(result.int32Value)
+        guard result.numberOfItems > 0 else { return [] }
+        return (1...result.numberOfItems).compactMap { index in
+            guard let item = result.atIndex(index) else { return nil }
+            return Int(item.int32Value)
+        }
+    }
+
+    private func stableWindowOrder(currentWindowIDs: [Int]) -> [Int] {
+        let currentSet = Set(currentWindowIDs)
+        let surviving = orderedWindowIDs.filter { currentSet.contains($0) }
+        let survivingSet = Set(surviving)
+        let added = currentWindowIDs.filter { !survivingSet.contains($0) }.sorted()
+        orderedWindowIDs = surviving.isEmpty && orderedWindowIDs.isEmpty
+            ? currentWindowIDs.sorted()
+            : surviving + added
+        return orderedWindowIDs
     }
 
     private func executeAppleScript(_ source: String) -> NSAppleEventDescriptor? {

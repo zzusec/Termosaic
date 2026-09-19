@@ -13,9 +13,15 @@ jobs:
         run: |
           swiftc Sources/GridLayout.swift Tests/main.swift -o /tmp/termosaic-grid-tests
           /tmp/termosaic-grid-tests
+      - name: Test semantic versions
+        run: |
+          swiftc Sources/SemanticVersion.swift Tests/VersionTests.swift -o /tmp/termosaic-version-tests
+          /tmp/termosaic-version-tests
       - name: Build universal app
         run: SKIP_INSTALL=1 ./build.sh
       - name: Verify architectures
         run: lipo -archs "build/Termosaic.app/Contents/MacOS/Termosaic"
+      - name: Test update installer
+        run: Tests/test_update_installer.sh
       - name: Build and verify DMG
         run: ./create-dmg.sh

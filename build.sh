@@ -11,7 +11,7 @@ ICONSET="$BUILD/TermosaicIcon.iconset"
 
 if [[ -e "$APP" ]]; then /bin/rm -R "$APP"; fi
 if [[ -e "$ICONSET" ]]; then /bin/rm -R "$ICONSET"; fi
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$ICONSET" "$ROOT/Resources"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Resources" "$ICONSET" "$ROOT/Resources"
 
 swift "$ROOT/Tools/generate_icon.swift" "$ROOT/Resources/TermosaicIcon-1024.png"
 for spec in \
@@ -32,10 +32,12 @@ done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/TermosaicIcon.icns"
 
 sources=(
+  "$ROOT/Sources/SemanticVersion.swift"
   "$ROOT/Sources/GridLayout.swift"
   "$ROOT/Sources/TerminalManager.swift"
   "$ROOT/Sources/GlobalHotKeyController.swift"
   "$ROOT/Sources/AutoContinueController.swift"
+  "$ROOT/Sources/UpdateController.swift"
   "$ROOT/Sources/TermosaicApp.swift"
 )
 
@@ -52,8 +54,24 @@ for arch in arm64 x86_64; do
 done
 
 lipo -create "$BUILD/Termosaic-arm64" "$BUILD/Termosaic-x86_64" -output "$APP/Contents/MacOS/Termosaic"
+
+for arch in arm64 x86_64; do
+  xcrun swiftc \
+    -parse-as-library \
+    -sdk "$SDK" \
+    -target "$arch-apple-macos13.0" \
+    -O \
+    "$ROOT/Sources/UpdateInstaller.swift" \
+    -o "$BUILD/TermosaicUpdateInstaller-$arch"
+done
+lipo -create \
+  "$BUILD/TermosaicUpdateInstaller-arm64" \
+  "$BUILD/TermosaicUpdateInstaller-x86_64" \
+  -output "$APP/Contents/Helpers/TermosaicUpdateInstaller"
+
 cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
-chmod +x "$APP/Contents/MacOS/Termosaic"
+chmod +x "$APP/Contents/MacOS/Termosaic" "$APP/Contents/Helpers/TermosaicUpdateInstaller"
+codesign --force --sign - "$APP/Contents/Helpers/TermosaicUpdateInstaller"
 plutil -lint "$APP/Contents/Info.plist"
 codesign --force --deep --sign - "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"

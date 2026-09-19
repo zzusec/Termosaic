@@ -1,0 +1,333 @@
+@preconcurrency import AppKit
+import Combine
+import CryptoKit
+import Foundation
+
+@MainActor
+final class UpdateController: NSObject, ObservableObject {
+    static let shared = UpdateController()
+
+    @Published private(set) var automaticChecksEnabled: Bool
+    @Published private(set) var automaticInstallationEnabled: Bool
+    @Published private(set) var isChecking = false
+    @Published private(set) var isDownloading = false
+    @Published private(set) var availableVersion: String?
+    @Published private(set) var statusMessage = "尚未检查更新"
+    @Published private(set) var isInstallingUpdate = false
+
+    private struct GitHubRelease: Decodable, Sendable {
+        let tagName: String
+        let name: String?
+        let draft: Bool
+        let prerelease: Bool
+        let assets: [GitHubAsset]
+
+        enum CodingKeys: String, CodingKey {
+            case tagName = "tag_name"
+            case name, draft, prerelease, assets
+        }
+    }
+
+    private struct GitHubAsset: Decodable, Sendable {
+        let name: String
+        let browserDownloadURL: URL
+        let size: Int
+
+        enum CodingKeys: String, CodingKey {
+            case name, size
+            case browserDownloadURL = "browser_download_url"
+        }
+    }
+
+    private let repository = "zzusec/Termosaic"
+    private let bundleIdentifier = "io.github.zzusec.termosaic"
+    private let checkInterval: TimeInterval = 6 * 60 * 60
+    private var timer: Timer?
+    private var availableRelease: GitHubRelease?
+    private var started = false
+
+    override private init() {
+        if UserDefaults.standard.object(forKey: "automaticUpdateChecks") == nil {
+            UserDefaults.standard.set(true, forKey: "automaticUpdateChecks")
+        }
+        if UserDefaults.standard.object(forKey: "automaticUpdateInstallation") == nil {
+            UserDefaults.standard.set(true, forKey: "automaticUpdateInstallation")
+        }
+        automaticChecksEnabled = UserDefaults.standard.bool(forKey: "automaticUpdateChecks")
+        automaticInstallationEnabled = UserDefaults.standard.bool(forKey: "automaticUpdateInstallation")
+        super.init()
+    }
+
+    func start() {
+        guard !started else { return }
+        started = true
+        scheduleTimer()
+        guard automaticChecksEnabled else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+            self?.checkForUpdates(userInitiated: false)
+        }
+    }
+
+    func setAutomaticChecksEnabled(_ enabled: Bool) {
+        automaticChecksEnabled = enabled
+        UserDefaults.standard.set(enabled, forKey: "automaticUpdateChecks")
+        scheduleTimer()
+        if enabled { checkForUpdates(userInitiated: true) }
+    }
+
+    func setAutomaticInstallationEnabled(_ enabled: Bool) {
+        automaticInstallationEnabled = enabled
+        UserDefaults.standard.set(enabled, forKey: "automaticUpdateInstallation")
+    }
+
+    func checkForUpdates(userInitiated: Bool = true) {
+        guard !isChecking, !isDownloading, !isInstallingUpdate else { return }
+        isChecking = true
+        statusMessage = "正在检查 GitHub 更新…"
+
+        Task {
+            defer { isChecking = false }
+            do {
+                let release = try await fetchLatestRelease()
+                guard !release.draft, !release.prerelease else {
+                    statusMessage = "最新 Release 不是正式版本"
+                    return
+                }
+                guard let remoteVersion = SemanticVersion(release.tagName),
+                      let currentVersion = currentSemanticVersion else {
+                    statusMessage = "无法解析版本号"
+                    return
+                }
+
+                if remoteVersion > currentVersion {
+                    availableRelease = release
+                    availableVersion = remoteVersion.description
+                    statusMessage = "发现新版本 v\(remoteVersion)"
+                    if automaticInstallationEnabled {
+                        installAvailableUpdate()
+                    }
+                } else {
+                    availableRelease = nil
+                    availableVersion = nil
+                    statusMessage = userInitiated ? "当前已是最新版本 v\(currentVersion)" : "已是最新版本"
+                }
+            } catch {
+                statusMessage = "检查更新失败：\(error.localizedDescription)"
+            }
+        }
+    }
+
+    func installAvailableUpdate() {
+        guard !isDownloading, !isInstallingUpdate, let release = availableRelease else { return }
+        isDownloading = true
+        statusMessage = "正在下载 v\(availableVersion ?? release.tagName)…"
+
+        Task {
+            defer { isDownloading = false }
+            do {
+                let stagedApp = try await downloadAndStage(release: release)
+                try launchInstaller(stagedApp: stagedApp)
+            } catch {
+                statusMessage = "安装更新失败：\(error.localizedDescription)"
+            }
+        }
+    }
+
+    private var currentSemanticVersion: SemanticVersion? {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String else { return nil }
+        return SemanticVersion(value)
+    }
+
+    @objc private func timerFired() {
+        guard automaticChecksEnabled else { return }
+        checkForUpdates(userInitiated: false)
+    }
+
+    private func scheduleTimer() {
+        timer?.invalidate()
+        timer = nil
+        guard automaticChecksEnabled else { return }
+        let timer = Timer(timeInterval: checkInterval, target: self, selector: #selector(timerFired), userInfo: nil, repeats: true)
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+    }
+
+    private func fetchLatestRelease() async throws -> GitHubRelease {
+        let url = URL(string: "https://api.github.com/repos/\(repository)/releases/latest")!
+        var request = URLRequest(url: url)
+        request.setValue("Termosaic/\(currentSemanticVersion?.description ?? "unknown")", forHTTPHeaderField: "User-Agent")
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validateHTTP(response)
+        return try JSONDecoder().decode(GitHubRelease.self, from: data)
+    }
+
+    private func downloadAndStage(release: GitHubRelease) async throws -> URL {
+        guard let version = SemanticVersion(release.tagName) else { throw UpdateError.invalidVersion }
+        let expectedDMGName = "Termosaic-v\(version)-macOS.dmg"
+        guard let dmgAsset = release.assets.first(where: { $0.name == expectedDMGName }),
+              let checksumAsset = release.assets.first(where: { $0.name == "\(expectedDMGName).sha256" }) else {
+            throw UpdateError.missingAssets
+        }
+
+        statusMessage = "正在下载更新包…"
+        let (temporaryDMG, dmgResponse) = try await URLSession.shared.download(from: dmgAsset.browserDownloadURL)
+        try validateHTTP(dmgResponse)
+        let (checksumData, checksumResponse) = try await URLSession.shared.data(from: checksumAsset.browserDownloadURL)
+        try validateHTTP(checksumResponse)
+
+        guard let checksumText = String(data: checksumData, encoding: .utf8),
+              let expectedHash = checksumText.split(whereSeparator: { $0.isWhitespace }).first.map(String.init),
+              expectedHash.count == 64 else {
+            throw UpdateError.invalidChecksumFile
+        }
+
+        let cacheDirectory = try updateCacheDirectory()
+        let cachedDMG = cacheDirectory.appendingPathComponent(expectedDMGName)
+        try replaceItem(at: cachedDMG, with: temporaryDMG)
+
+        statusMessage = "正在校验 SHA-256…"
+        let actualHash = try sha256(of: cachedDMG)
+        guard actualHash.caseInsensitiveCompare(expectedHash) == .orderedSame else {
+            throw UpdateError.checksumMismatch
+        }
+
+        statusMessage = "正在验证应用包…"
+        return try stageApplication(from: cachedDMG, version: version, cacheDirectory: cacheDirectory)
+    }
+
+    private func stageApplication(from dmgURL: URL, version: SemanticVersion, cacheDirectory: URL) throws -> URL {
+        let mountPoint = FileManager.default.temporaryDirectory
+            .appendingPathComponent("TermosaicUpdate-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: mountPoint, withIntermediateDirectories: true)
+
+        let attach = runTool("/usr/bin/hdiutil", [
+            "attach", dmgURL.path, "-readonly", "-nobrowse", "-mountpoint", mountPoint.path
+        ])
+        guard attach.status == 0 else { throw UpdateError.mountFailed(attach.error) }
+        defer {
+            _ = runTool("/usr/bin/hdiutil", ["detach", mountPoint.path, "-quiet"])
+            try? FileManager.default.removeItem(at: mountPoint)
+        }
+
+        let sourceApp = mountPoint.appendingPathComponent("Termosaic.app", isDirectory: true)
+        guard FileManager.default.fileExists(atPath: sourceApp.path) else { throw UpdateError.appMissingFromDMG }
+
+        let stagedApp = cacheDirectory.appendingPathComponent("Termosaic-v\(version).app", isDirectory: true)
+        if FileManager.default.fileExists(atPath: stagedApp.path) { try FileManager.default.removeItem(at: stagedApp) }
+        let copy = runTool("/usr/bin/ditto", [sourceApp.path, stagedApp.path])
+        guard copy.status == 0 else { throw UpdateError.stagingFailed(copy.error) }
+
+        guard let stagedBundle = Bundle(url: stagedApp),
+              stagedBundle.bundleIdentifier == bundleIdentifier,
+              let stagedVersionString = stagedBundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
+              let stagedVersion = SemanticVersion(stagedVersionString),
+              stagedVersion == version,
+              let currentVersion = currentSemanticVersion,
+              stagedVersion > currentVersion else {
+            throw UpdateError.invalidApplication
+        }
+
+        let signature = runTool("/usr/bin/codesign", ["--verify", "--deep", "--strict", stagedApp.path])
+        guard signature.status == 0 else { throw UpdateError.signatureInvalid(signature.error) }
+        return stagedApp
+    }
+
+    private func launchInstaller(stagedApp: URL) throws {
+        let installedApp = Bundle.main.bundleURL
+        guard installedApp.path.hasPrefix("/Applications/") else { throw UpdateError.notInstalledInApplications }
+        guard FileManager.default.isWritableFile(atPath: installedApp.deletingLastPathComponent().path) else {
+            throw UpdateError.applicationsNotWritable
+        }
+
+        let helper = installedApp.appendingPathComponent("Contents/Helpers/TermosaicUpdateInstaller")
+        guard FileManager.default.isExecutableFile(atPath: helper.path) else { throw UpdateError.helperMissing }
+
+        let backup = installedApp.deletingLastPathComponent().appendingPathComponent(".Termosaic.app.backup")
+        let log = try updateCacheDirectory().appendingPathComponent("update-installer.log")
+        let process = Process()
+        process.executableURL = helper
+        process.arguments = [
+            String(ProcessInfo.processInfo.processIdentifier),
+            stagedApp.path,
+            installedApp.path,
+            backup.path,
+            log.path
+        ]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+
+        isInstallingUpdate = true
+        statusMessage = "正在安装更新并重新启动…"
+        NSApplication.shared.terminate(nil)
+    }
+
+    private func updateCacheDirectory() throws -> URL {
+        let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent(bundleIdentifier, isDirectory: true)
+            .appendingPathComponent("Updates", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        return root
+    }
+
+    private func replaceItem(at destination: URL, with source: URL) throws {
+        if FileManager.default.fileExists(atPath: destination.path) { try FileManager.default.removeItem(at: destination) }
+        try FileManager.default.moveItem(at: source, to: destination)
+    }
+
+    private func sha256(of url: URL) throws -> String {
+        let data = try Data(contentsOf: url, options: .mappedIfSafe)
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func validateHTTP(_ response: URLResponse) throws {
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw UpdateError.httpFailure((response as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+    }
+
+    private func runTool(_ path: String, _ arguments: [String]) -> (status: Int32, output: String, error: String) {
+        let process = Process()
+        let stdout = Pipe()
+        let stderr = Pipe()
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = arguments
+        process.standardOutput = stdout
+        process.standardError = stderr
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            return (127, "", error.localizedDescription)
+        }
+        let output = String(data: stdout.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        let error = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        return (process.terminationStatus, output, error.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    private enum UpdateError: LocalizedError {
+        case invalidVersion, missingAssets, invalidChecksumFile, checksumMismatch
+        case mountFailed(String), appMissingFromDMG, stagingFailed(String), invalidApplication
+        case signatureInvalid(String), notInstalledInApplications, applicationsNotWritable, helperMissing
+        case httpFailure(Int)
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidVersion: return "Release 版本号无效"
+            case .missingAssets: return "Release 缺少 DMG 或校验文件"
+            case .invalidChecksumFile: return "SHA-256 文件格式无效"
+            case .checksumMismatch: return "下载文件的 SHA-256 不匹配"
+            case .mountFailed(let message): return "无法挂载 DMG：\(message)"
+            case .appMissingFromDMG: return "DMG 中没有 Termosaic.app"
+            case .stagingFailed(let message): return "无法准备更新：\(message)"
+            case .invalidApplication: return "更新包的 Bundle ID 或版本无效"
+            case .signatureInvalid(let message): return "更新包签名校验失败：\(message)"
+            case .notInstalledInApplications: return "请先将 Termosaic 安装到 /Applications"
+            case .applicationsNotWritable: return "/Applications 当前不可写，无法自动替换"
+            case .helperMissing: return "更新助手缺失"
+            case .httpFailure(let code): return "GitHub 请求失败（HTTP \(code)）"
+            }
+        }
+    }
+}

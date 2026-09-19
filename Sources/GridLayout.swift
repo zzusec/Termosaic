@@ -47,4 +47,23 @@ struct GridLayout {
         }
         return result
     }
+    static func clockwiseFrames(count: Int, within bounds: CGRect, gap: CGFloat = 10) -> [CGRect] {
+        let rowMajorFrames = frames(count: count, within: bounds, gap: gap)
+        guard count > 1 else { return rowMajorFrames }
+
+        let columnCount = Int(ceil(sqrt(Double(count))))
+        var result: [CGRect] = []
+        var index = 0
+        var row = 0
+
+        while index < rowMajorFrames.count {
+            let itemsInRow = min(columnCount, rowMajorFrames.count - index)
+            let rowFrames = Array(rowMajorFrames[index..<(index + itemsInRow)])
+            result.append(contentsOf: row.isMultiple(of: 2) ? rowFrames : rowFrames.reversed())
+            index += itemsInRow
+            row += 1
+        }
+        return result
+    }
+
 }

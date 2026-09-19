@@ -54,6 +54,15 @@ for index in sixZeroGap.indices {
 expect(sixZeroGap[0].maxX == sixZeroGap[1].minX, "top-row windows should touch exactly")
 expect(sixZeroGap[0].minY == sixZeroGap[3].maxY, "top and bottom rows should touch exactly")
 
+let fourClockwise = GridLayout.clockwiseFrames(count: 4, within: bounds, gap: 0)
+expect(fourClockwise[0].minX < fourClockwise[1].minX && fourClockwise[0].minY == fourClockwise[1].minY, "clockwise order should begin across the top row")
+expect(fourClockwise[2].minX > fourClockwise[3].minX && fourClockwise[2].minY == fourClockwise[3].minY, "clockwise order should return across the bottom row")
+expect(fourClockwise[0].minY > fourClockwise[2].minY, "top row should precede bottom row")
+
+let sixClockwise = GridLayout.clockwiseFrames(count: 6, within: macBookVisibleFrame, gap: 0)
+expect(sixClockwise[0].minX < sixClockwise[1].minX && sixClockwise[1].minX < sixClockwise[2].minX, "six-window order should move left to right across the top")
+expect(sixClockwise[3].minX > sixClockwise[4].minX && sixClockwise[4].minX > sixClockwise[5].minX, "six-window order should move right to left across the bottom")
+
 let afterClose = GridLayout.frames(count: 3, within: bounds, gap: 10)
 expect(afterClose.count == 3, "closing a window should yield a complete three-window layout")
 expect(afterClose[2].width > afterClose[0].width, "remaining final-row window should expand after close")
