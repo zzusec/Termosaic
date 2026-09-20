@@ -116,7 +116,7 @@ Use the “all Terminal windows” target carefully: a normal shell may receive 
 
 ## Online automatic updates
 
-Termosaic checks the latest public GitHub Release shortly after launch and every six hours. Automatic checking and installation are enabled by default and can be changed from the **软件更新** submenu.
+Termosaic checks the latest public GitHub Release shortly after launch and every six hours, then downloads and installs it automatically. The menu shows only the current version and a **检查更新** action.
 
 Update interaction remains inside the menu bar; Termosaic does not show an intrusive desktop update modal.
 

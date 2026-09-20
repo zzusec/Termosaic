@@ -7,8 +7,7 @@ import Foundation
 final class UpdateController: NSObject, ObservableObject {
     static let shared = UpdateController()
 
-    @Published private(set) var automaticChecksEnabled: Bool
-    @Published private(set) var automaticInstallationEnabled: Bool
+    @Published private(set) var isUpToDate = false
     @Published private(set) var isChecking = false
     @Published private(set) var isDownloading = false
     @Published private(set) var availableVersion: String?
@@ -47,14 +46,6 @@ final class UpdateController: NSObject, ObservableObject {
     private var started = false
 
     override private init() {
-        if UserDefaults.standard.object(forKey: "automaticUpdateChecks") == nil {
-            UserDefaults.standard.set(true, forKey: "automaticUpdateChecks")
-        }
-        if UserDefaults.standard.object(forKey: "automaticUpdateInstallation") == nil {
-            UserDefaults.standard.set(true, forKey: "automaticUpdateInstallation")
-        }
-        automaticChecksEnabled = UserDefaults.standard.bool(forKey: "automaticUpdateChecks")
-        automaticInstallationEnabled = UserDefaults.standard.bool(forKey: "automaticUpdateInstallation")
         super.init()
     }
 
@@ -62,27 +53,15 @@ final class UpdateController: NSObject, ObservableObject {
         guard !started else { return }
         started = true
         scheduleTimer()
-        guard automaticChecksEnabled else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
             self?.checkForUpdates(userInitiated: false)
         }
     }
 
-    func setAutomaticChecksEnabled(_ enabled: Bool) {
-        automaticChecksEnabled = enabled
-        UserDefaults.standard.set(enabled, forKey: "automaticUpdateChecks")
-        scheduleTimer()
-        if enabled { checkForUpdates(userInitiated: true) }
-    }
-
-    func setAutomaticInstallationEnabled(_ enabled: Bool) {
-        automaticInstallationEnabled = enabled
-        UserDefaults.standard.set(enabled, forKey: "automaticUpdateInstallation")
-    }
-
     func checkForUpdates(userInitiated: Bool = true) {
         guard !isChecking, !isDownloading, !isInstallingUpdate else { return }
         isChecking = true
+        isUpToDate = false
         statusMessage = "正在检查 GitHub 更新…"
 
         Task {
@@ -103,12 +82,11 @@ final class UpdateController: NSObject, ObservableObject {
                     availableRelease = release
                     availableVersion = remoteVersion.description
                     statusMessage = "发现新版本 v\(remoteVersion)"
-                    if automaticInstallationEnabled {
-                        installAvailableUpdate()
-                    }
+                    installAvailableUpdate()
                 } else {
                     availableRelease = nil
                     availableVersion = nil
+                    isUpToDate = true
                     statusMessage = userInitiated ? "当前已是最新版本 v\(currentVersion)" : "已是最新版本"
                 }
             } catch {
@@ -139,14 +117,12 @@ final class UpdateController: NSObject, ObservableObject {
     }
 
     @objc private func timerFired() {
-        guard automaticChecksEnabled else { return }
         checkForUpdates(userInitiated: false)
     }
 
     private func scheduleTimer() {
         timer?.invalidate()
         timer = nil
-        guard automaticChecksEnabled else { return }
         let timer = Timer(timeInterval: checkInterval, target: self, selector: #selector(timerFired), userInfo: nil, repeats: true)
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer

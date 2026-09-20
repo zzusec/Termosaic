@@ -69,6 +69,28 @@ struct TermosaicApp: App {
         }
     }
 
+    private var updateVersionText: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "未知"
+        if updater.isDownloading || updater.isInstallingUpdate {
+            return "版本 v\(version)（正在更新…）"
+        }
+        if updater.isChecking {
+            return "版本 v\(version)（正在检查…）"
+        }
+        if updater.isUpToDate {
+            return "版本 v\(version)（已是最新）"
+        }
+        return "版本 v\(version)"
+    }
+
+    private var updateDetailText: String? {
+        guard !updater.isChecking,
+              !updater.isDownloading,
+              !updater.isInstallingUpdate,
+              !updater.isUpToDate else { return nil }
+        return updater.statusMessage
+    }
+
     private var menuBarSymbol: String {
         switch manager.phase {
         case .visible:
@@ -185,44 +207,14 @@ struct TermosaicApp: App {
             }
 
             Divider()
-            Menu {
-                Text(updater.statusMessage)
+            Text(updateVersionText)
+            Button(updater.isChecking ? "正在检查…" : "检查更新") {
+                updater.checkForUpdates()
+            }
+            .disabled(updater.isChecking || updater.isDownloading || updater.isInstallingUpdate)
 
-                if let version = updater.availableVersion {
-                    Button("立即更新到 v\(version)") {
-                        updater.installAvailableUpdate()
-                    }
-                    .disabled(updater.isDownloading || updater.isInstallingUpdate)
-                    Divider()
-                }
-
-                Button(updater.isChecking ? "正在检查…" : "立即检查更新") {
-                    updater.checkForUpdates()
-                }
-                .disabled(updater.isChecking || updater.isDownloading || updater.isInstallingUpdate)
-
-                Toggle(
-                    "自动检查更新",
-                    isOn: Binding(
-                        get: { updater.automaticChecksEnabled },
-                        set: { updater.setAutomaticChecksEnabled($0) }
-                    )
-                )
-                Toggle(
-                    "自动下载并安装",
-                    isOn: Binding(
-                        get: { updater.automaticInstallationEnabled },
-                        set: { updater.setAutomaticInstallationEnabled($0) }
-                    )
-                )
-            } label: {
-                if let version = updater.availableVersion {
-                    Label("新版本 v\(version) 可用", systemImage: "arrow.down.circle.fill")
-                } else if updater.isChecking || updater.isDownloading {
-                    Label("正在检查软件更新", systemImage: "arrow.triangle.2.circlepath")
-                } else {
-                    Label("软件更新", systemImage: "arrow.down.circle")
-                }
+            if let detail = updateDetailText {
+                Text(detail)
             }
 
             Divider()
