@@ -61,9 +61,9 @@ This permission is used locally to count, restore, move, resize, and send explic
 ## Usage
 
 1. Launch Termosaic. A four-tile icon appears in the macOS menu bar.
-2. Choose **显示并重新平铺** to show and arrange every Terminal window.
+2. Turn on **显示终端画布** to show and arrange every Terminal window.
 3. Open a new Terminal window with `⌘N`, or close an existing window. The layout updates automatically.
-4. Switch to another application to hide the Terminal canvas automatically, or choose **隐藏终端** manually.
+4. Switch to another application to hide the Terminal canvas automatically, or turn **显示终端画布** off manually.
 5. Hidden Terminal windows and their commands continue running.
 
 ## Clockwise window order
@@ -92,9 +92,10 @@ Global shortcut:
 
 Menu shortcuts:
 
-- `⌥⌘1` — show and tile
-- `⌥⌘2` — hide Terminal
-- `⌥⌘3` — re-tile on the display under the pointer
+- `⌥⌘1` — show or hide the canvas
+- `⌥⌘2` — re-tile on the display under the pointer
+
+Auto-continue speed, its target, the global shortcut, and the canvas preferences live under **更多设置**.
 
 > `⌘O` normally means “Open” in macOS applications. Select an alternative if you want to preserve that command.
 

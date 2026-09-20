@@ -17,8 +17,8 @@ A quiet, menu-bar-only macOS utility. It must remain available without creating 
 
 ## Interaction
 
-- The main action is always “显示并平铺”.
-- “隐藏终端” is explicit, while an enabled canvas preference hides the complete Terminal group when another application becomes active.
-- “重新排列” uses the display under the pointer.
+- The main action is one toggle, “显示终端画布”, and its state is the canvas state.
+- “重新排列” uses the display under the pointer; an enabled canvas preference hides the complete Terminal group when another application becomes active.
+- The top level stays short: canvas toggle, re-tile, version with update action, then 更多设置 and quit. Auto-continue, global shortcut, and preferences live under 更多设置.
 - Automation permission failures explain both the problem and the exact recovery path in System Settings.
-- The menu-bar control is the sole interface and contains every action, quota-aware retry status, online-update state, and global-shortcut choice.
+- The menu-bar control is the sole interface and holds every action, quota-aware retry status, and online-update state.

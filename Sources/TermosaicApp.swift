@@ -107,100 +107,22 @@ struct TermosaicApp: App {
             Text(statusText)
             Divider()
 
-            Button("显示并重新平铺") {
-                manager.showDashboard()
-            }
+            Toggle(
+                "显示终端画布",
+                isOn: Binding(
+                    get: { manager.phase == .visible },
+                    set: { $0 ? manager.showDashboard() : manager.hideDashboard() }
+                )
+            )
             .keyboardShortcut("1", modifiers: [.command, .option])
-
-            Button("隐藏终端") {
-                manager.hideDashboard()
-            }
-            .keyboardShortcut("2", modifiers: [.command, .option])
 
             Button("重新排列到鼠标所在显示器") {
                 manager.useDisplayUnderPointerAndRetile()
             }
-            .keyboardShortcut("3", modifiers: [.command, .option])
+            .keyboardShortcut("2", modifiers: [.command, .option])
             .disabled(!manager.automationAuthorized)
-
-            Divider()
-            Menu("全局快捷键：\(hotKeys.selectedShortcut.displayName)") {
-                ForEach(GlobalShortcut.allCases) { shortcut in
-                    Button {
-                        hotKeys.setShortcut(shortcut)
-                    } label: {
-                        if hotKeys.selectedShortcut == shortcut {
-                            Label(shortcut.menuTitle, systemImage: "checkmark")
-                        } else {
-                            Text(shortcut.menuTitle)
-                        }
-                    }
-                }
-            }
-
-            if hotKeys.selectedShortcut == .commandO {
-                Text("⌘O 会覆盖其他应用的“打开”快捷键")
-            }
-            if let error = hotKeys.registrationError {
-                Text(error)
-            }
-
-            Divider()
-            Toggle(
-                "自动发送“继续”",
-                isOn: Binding(
-                    get: { autoContinue.isEnabled },
-                    set: { autoContinue.setEnabled($0) }
-                )
-            )
-
-            Menu("重试间隔：\(autoContinue.interval.displayName)") {
-                ForEach(AutoContinueInterval.allCases) { interval in
-                    Button {
-                        autoContinue.setInterval(interval)
-                    } label: {
-                        if autoContinue.interval == interval {
-                            Label(interval.displayName, systemImage: "checkmark")
-                        } else {
-                            Text(interval.displayName)
-                        }
-                    }
-                }
-            }
-            .disabled(!autoContinue.isEnabled)
-
-            Menu("发送范围：\(autoContinue.target.displayName)") {
-                ForEach(AutoContinueTarget.allCases) { target in
-                    Button {
-                        autoContinue.setTarget(target)
-                    } label: {
-                        if autoContinue.target == target {
-                            Label(target.displayName, systemImage: "checkmark")
-                        } else {
-                            Text(target.displayName)
-                        }
-                    }
-                }
-            }
-            .disabled(!autoContinue.isEnabled)
-
-            Button("立即发送一次“继续”") {
-                autoContinue.sendNow()
-            }
-            .disabled(!manager.automationAuthorized)
-
-            if autoContinue.isEnabled, let nextAttempt = autoContinue.nextAttemptDescription {
-                Text("下次自动重试：\(nextAttempt)")
-            }
-            if let statusMessage = autoContinue.lastStatusMessage {
-                Text(statusMessage)
-            } else if let sentCount = autoContinue.lastSentCount {
-                Text("上次已发送到 \(sentCount) 个会话")
-            }
 
             if !manager.automationAuthorized {
-                Divider()
-                Text("需要允许 Termosaic 控制系统 Terminal")
                 Button("打开自动化设置…") {
                     manager.openAutomationSettings()
                 }
@@ -218,8 +140,85 @@ struct TermosaicApp: App {
             }
 
             Divider()
-            Toggle("切换到其他应用时隐藏终端画布", isOn: $autoHideCanvasWhenSwitchingApps)
-            Toggle("退出时隐藏 Terminal", isOn: $hideTerminalOnQuit)
+            Menu("更多设置") {
+                Toggle(
+                    "自动发送“继续”",
+                    isOn: Binding(
+                        get: { autoContinue.isEnabled },
+                        set: { autoContinue.setEnabled($0) }
+                    )
+                )
+
+                Menu("重试间隔：\(autoContinue.interval.displayName)") {
+                    ForEach(AutoContinueInterval.allCases) { interval in
+                        Button {
+                            autoContinue.setInterval(interval)
+                        } label: {
+                            if autoContinue.interval == interval {
+                                Label(interval.displayName, systemImage: "checkmark")
+                            } else {
+                                Text(interval.displayName)
+                            }
+                        }
+                    }
+                }
+                .disabled(!autoContinue.isEnabled)
+
+                Menu("发送范围：\(autoContinue.target.displayName)") {
+                    ForEach(AutoContinueTarget.allCases) { target in
+                        Button {
+                            autoContinue.setTarget(target)
+                        } label: {
+                            if autoContinue.target == target {
+                                Label(target.displayName, systemImage: "checkmark")
+                            } else {
+                                Text(target.displayName)
+                            }
+                        }
+                    }
+                }
+                .disabled(!autoContinue.isEnabled)
+
+                Button("立即发送一次“继续”") {
+                    autoContinue.sendNow()
+                }
+                .disabled(!manager.automationAuthorized)
+
+                if autoContinue.isEnabled, let nextAttempt = autoContinue.nextAttemptDescription {
+                    Text("下次自动重试：\(nextAttempt)")
+                }
+                if let statusMessage = autoContinue.lastStatusMessage {
+                    Text(statusMessage)
+                } else if let sentCount = autoContinue.lastSentCount {
+                    Text("上次已发送到 \(sentCount) 个会话")
+                }
+
+                Divider()
+                Menu("全局快捷键：\(hotKeys.selectedShortcut.displayName)") {
+                    ForEach(GlobalShortcut.allCases) { shortcut in
+                        Button {
+                            hotKeys.setShortcut(shortcut)
+                        } label: {
+                            if hotKeys.selectedShortcut == shortcut {
+                                Label(shortcut.menuTitle, systemImage: "checkmark")
+                            } else {
+                                Text(shortcut.menuTitle)
+                            }
+                        }
+                    }
+                }
+
+                if hotKeys.selectedShortcut == .commandO {
+                    Text("⌘O 会覆盖其他应用的“打开”快捷键")
+                }
+                if let error = hotKeys.registrationError {
+                    Text(error)
+                }
+
+                Divider()
+                Toggle("切换到其他应用时隐藏终端画布", isOn: $autoHideCanvasWhenSwitchingApps)
+                Toggle("退出时隐藏 Terminal", isOn: $hideTerminalOnQuit)
+            }
 
             Divider()
             Button("退出 Termosaic") {
