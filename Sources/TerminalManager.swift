@@ -36,6 +36,20 @@ final class TerminalManager: NSObject, ObservableObject {
         super.init()
     }
 
+    /// Publishing identical values would rebuild the menu on every poll tick, which closes it
+    /// while the user is reading. State therefore only changes when it really changes.
+    private func updatePhase(_ newPhase: Phase) {
+        if phase != newPhase { phase = newPhase }
+    }
+
+    private func updateWindowCount(_ value: Int) {
+        if terminalWindowCount != value { terminalWindowCount = value }
+    }
+
+    private func updateAutomationAuthorized(_ value: Bool) {
+        if automationAuthorized != value { automationAuthorized = value }
+    }
+
     func start() {
         guard !started else { return }
         started = true
@@ -65,7 +79,7 @@ final class TerminalManager: NSObject, ObservableObject {
         if let terminal = terminalApplication() {
             _ = terminal.unhide()
             _ = terminal.activate(options: [.activateAllWindows])
-            phase = .visible
+            updatePhase(.visible)
             scheduleTilePasses()
         } else {
             launchTerminal()
@@ -83,7 +97,7 @@ final class TerminalManager: NSObject, ObservableObject {
             _ = terminal.hide()
         }
 
-        phase = terminalApplication() == nil ? .terminalNotRunning : .hidden
+        updatePhase(terminalApplication() == nil ? .terminalNotRunning : .hidden)
 
         if activateManager {
             NSApp.activate(ignoringOtherApps: true)
@@ -182,26 +196,28 @@ final class TerminalManager: NSObject, ObservableObject {
     private func startPolling() {
         pollTimer?.invalidate()
         let timer = Timer(timeInterval: pollInterval, target: self, selector: #selector(pollTerminalState), userInfo: nil, repeats: true)
-        RunLoop.main.add(timer, forMode: .common)
+        // Default mode, not .common: menu tracking uses event-tracking mode, and we must not
+        // mutate published state while the user has the menu open.
+        RunLoop.main.add(timer, forMode: .default)
         pollTimer = timer
     }
 
     @objc private func pollTerminalState() {
         guard let terminal = terminalApplication() else {
-            terminalWindowCount = 0
+            updateWindowCount(0)
             lastTiledWindowIDs = []
-            if dashboardRequested { phase = .terminalNotRunning }
+            if dashboardRequested { updatePhase(.terminalNotRunning) }
             return
         }
 
         if terminal.isHidden {
             dashboardRequested = false
-            phase = .hidden
+            updatePhase(.hidden)
             return
         }
 
         guard dashboardRequested else { return }
-        phase = .visible
+        updatePhase(.visible)
 
         // Poll Window Server cheaply for near-instant change detection. Confirm with
         // Terminal AppleScript only when the candidate count changes, excluding the
@@ -220,7 +236,7 @@ final class TerminalManager: NSObject, ObservableObject {
         lastWindowServerCandidateCount = candidateCount
 
         let orderedWindowIDs = stableWindowOrder(currentWindowIDs: windowIDs)
-        terminalWindowCount = orderedWindowIDs.count
+        updateWindowCount(orderedWindowIDs.count)
         guard orderedWindowIDs != lastTiledWindowIDs else { return }
 
         tileTerminalWindows(knownWindowIDs: orderedWindowIDs)
@@ -236,7 +252,7 @@ final class TerminalManager: NSObject, ObservableObject {
             URL(fileURLWithPath: "/Applications/Utilities/Terminal.app")
         ]
         guard let appURL = candidateURLs.first(where: { FileManager.default.fileExists(atPath: $0.path) }) else {
-            phase = .error("找不到系统 Terminal.app")
+            updatePhase(.error("找不到系统 Terminal.app"))
             return
         }
 
@@ -246,11 +262,11 @@ final class TerminalManager: NSObject, ObservableObject {
             DispatchQueue.main.async {
                 guard let self else { return }
                 if let error {
-                    self.phase = .error("无法启动 Terminal：\(error.localizedDescription)")
+                    self.updatePhase(.error("无法启动 Terminal：\(error.localizedDescription)"))
                     return
                 }
                 self.dashboardRequested = true
-                self.phase = .visible
+                self.updatePhase(.visible)
                 _ = app?.unhide()
                 self.scheduleTilePasses()
             }
@@ -269,23 +285,23 @@ final class TerminalManager: NSObject, ObservableObject {
 
     private func tileTerminalWindows(knownWindowIDs: [Int]? = nil) {
         guard terminalApplication() != nil else {
-            phase = .terminalNotRunning
-            terminalWindowCount = 0
+            updatePhase(.terminalNotRunning)
+            updateWindowCount(0)
             return
         }
 
         guard let currentWindowIDs = knownWindowIDs ?? readTerminalWindowIDs() else { return }
         let windowIDs = stableWindowOrder(currentWindowIDs: currentWindowIDs)
         let count = windowIDs.count
-        terminalWindowCount = count
+        updateWindowCount(count)
         lastTiledWindowIDs = windowIDs
 
         guard count > 0 else {
-            phase = .visible
+            updatePhase(.visible)
             return
         }
         guard let screen = targetScreen ?? NSScreen.main else {
-            phase = .error("找不到可用显示器")
+            updatePhase(.error("找不到可用显示器"))
             return
         }
 
@@ -320,7 +336,7 @@ final class TerminalManager: NSObject, ObservableObject {
         """
 
         guard executeAppleScript(source) != nil else { return }
-        phase = .visible
+        updatePhase(.visible)
     }
 
     private func windowServerCandidateCount(pid: pid_t) -> Int {
@@ -367,7 +383,7 @@ final class TerminalManager: NSObject, ObservableObject {
 
     private func executeAppleScript(_ source: String) -> NSAppleEventDescriptor? {
         guard let script = NSAppleScript(source: source) else {
-            phase = .error("无法创建 Terminal 自动化脚本")
+            updatePhase(.error("无法创建 Terminal 自动化脚本"))
             return nil
         }
 
@@ -378,17 +394,17 @@ final class TerminalManager: NSObject, ObservableObject {
             let number = (errorInfo?[NSAppleScript.errorNumber] as? NSNumber)?.intValue ?? 0
             let message = (errorInfo?[NSAppleScript.errorMessage] as? String) ?? "未知自动化错误"
             if number == -1743 {
-                automationAuthorized = false
+                updateAutomationAuthorized(false)
                 logger.error("Terminal automation permission denied")
-                phase = .needsAutomationPermission
+                updatePhase(.needsAutomationPermission)
             } else {
                 logger.error("Terminal automation failed: \(message, privacy: .public)")
-                phase = .error("Terminal 自动化失败：\(message)")
+                updatePhase(.error("Terminal 自动化失败：\(message)"))
             }
             return nil
         }
 
-        automationAuthorized = true
+        updateAutomationAuthorized(true)
         logger.debug("Terminal automation script completed")
         return result
     }
