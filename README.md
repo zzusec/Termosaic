@@ -96,7 +96,7 @@ Menu shortcuts:
 - `⌥⌘2` — re-tile on the display under the pointer
 - `⌥⌘3` — send `继续` now, without waiting for the next scheduled attempt
 
-Auto-continue interval and target live in the 自动“继续” submenu; **激活 5h 窗口** opens a small time panel where any start time can be set. The update line stays on the top level. Hiding the canvas when another application becomes active, and hiding Terminal on quit, are always on.
+Auto-continue interval and target live in the 自动“继续” submenu; **激活 5h 窗口** opens a small time panel where the start time is set by scrolling (5 minutes per notch, ⇧ for whole hours). The update line stays on the top level. Hiding the canvas when another application becomes active, and hiding Terminal on quit, are always on.
 
 > `⌘O` normally means “Open” in macOS applications. Select an alternative if you want to preserve that command.
 

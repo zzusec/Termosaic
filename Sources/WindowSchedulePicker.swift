@@ -1,5 +1,15 @@
 import AppKit
 
+/// Lets the user set the start time by scrolling: 5 minutes per notch, one hour with ⇧.
+private final class ScrollDatePicker: NSDatePicker {
+    override func scrollWheel(with event: NSEvent) {
+        guard event.scrollingDeltaY != 0 else { return }
+        let step = event.modifierFlags.contains(.shift) ? 60 : 5
+        let direction = event.scrollingDeltaY > 0 ? 1 : -1
+        dateValue = Calendar.current.date(byAdding: .minute, value: direction * step, to: dateValue) ?? dateValue
+    }
+}
+
 /// Lets the user pick any start time for the five-hour windows without a 24-row menu.
 @MainActor
 final class WindowSchedulePicker: NSObject {
@@ -27,14 +37,14 @@ final class WindowSchedulePicker: NSObject {
         label.alignment = .right
         panel.contentView?.addSubview(label)
 
-        let picker = NSDatePicker(frame: NSRect(x: 88, y: 56, width: 130, height: 28))
+        let picker = ScrollDatePicker(frame: NSRect(x: 88, y: 56, width: 130, height: 28))
         picker.datePickerStyle = .textFieldAndStepper
         picker.datePickerElements = .hourMinute
         picker.dateValue = controller.windowStartDate ?? Date()
         panel.contentView?.addSubview(picker)
         self.picker = picker
 
-        let hint = NSTextField(labelWithString: "每 5 小时从这里重新开始一轮")
+        let hint = NSTextField(labelWithString: "滚动微调 5 分钟（⇧ 按小时）· 每 5 小时一轮")
         hint.frame = NSRect(x: 20, y: 32, width: 260, height: 14)
         hint.font = NSFont.systemFont(ofSize: 11)
         hint.textColor = .secondaryLabelColor
