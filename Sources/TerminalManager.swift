@@ -110,11 +110,12 @@ final class TerminalManager: NSObject, ObservableObject {
         retile()
     }
 
-    func sendContinueToTerminalSessions(includeAllWindows: Bool) -> Int? {
+    func sendContinueToTerminalSessions(includeAllWindows: Bool) -> (sent: Int, busy: Int)? {
         let sendToAll = includeAllWindows ? "true" : "false"
         let source = """
         set sendToAll to \(sendToAll)
         set sentCount to 0
+        set busyCount to 0
         tell application id "com.apple.Terminal"
             repeat with windowRef in every window
                 try
@@ -134,27 +135,44 @@ final class TerminalManager: NSObject, ObservableObject {
                     if shouldSend then
                         set screenText to get contents of selected tab of currentWindow
                         try
-                            set tail to text -1200 thru -1 of screenText
+                            set tail to text -600 thru -1 of screenText
                         on error
                             set tail to screenText
                         end try
-                        set answer to "继续"
-                        ignoring case
-                            if tail contains "y/n" or tail contains "yes/no" or tail contains "want to continue" or tail contains "输入 yes" or tail contains "是否继续" or tail contains "确认继续" then
-                                set answer to "yes"
-                            end if
-                        end ignoring
-                        do script answer in activeTab
-                        set sentCount to sentCount + 1
+
+                        set stillRunning to false
+                        if tail contains "esc to interrupt" then set stillRunning to true
+                        repeat with spinner in {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", "✳", "✻", "✢", "✶", "✷"}
+                            if tail contains spinner then set stillRunning to true
+                        end repeat
+                        repeat with spinner in {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+                            if windowName contains spinner then set stillRunning to true
+                        end repeat
+
+                        if stillRunning then
+                            set busyCount to busyCount + 1
+                        else
+                            set answer to "继续"
+                            ignoring case
+                                if tail contains "y/n" or tail contains "yes/no" or tail contains "want to continue" or tail contains "输入 yes" or tail contains "是否继续" or tail contains "确认继续" then
+                                    set answer to "yes"
+                                end if
+                            end ignoring
+                            do script answer in activeTab
+                            set sentCount to sentCount + 1
+                        end if
                     end if
                 end try
             end repeat
         end tell
-        return sentCount
+        return {sentCount, busyCount}
         """
 
-        guard let result = executeAppleScript(source) else { return nil }
-        return Int(result.int32Value)
+        guard let result = executeAppleScript(source),
+              result.numberOfItems == 2,
+              let sentCount = result.atIndex(1)?.int32Value,
+              let busyCount = result.atIndex(2)?.int32Value else { return nil }
+        return (sent: Int(sentCount), busy: Int(busyCount))
     }
 
     func prepareForTermination() {

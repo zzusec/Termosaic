@@ -106,6 +106,8 @@ Termosaic periodically resumes matching Codex/Claude Terminal sessions so work r
 
 Each eligible session receives `继续`. If the session is waiting on a confirmation instead (`(y/n)`, `yes/no`, `是否继续`, and similar prompts), Termosaic answers `yes` so the block clears.
 
+A session that is still working is left alone: Termosaic skips anything showing a live spinner or an `esc to interrupt` line, so it never types over running work.
+
 By default the target is sessions whose title or process list contains `Codex` or `Claude`, so ordinary shells are left alone.
 
 - Enabled by default

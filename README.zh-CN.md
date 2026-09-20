@@ -106,6 +106,8 @@ Termosaic 会定时恢复匹配的 Codex/Claude Terminal 会话，让任务自�
 
 每个符合范围的会话都会收到“继续”。如果会话其实在等确认（`(y/n)`、`yes/no`、`是否继续` 这类提示），Termosaic 会改为回答 `yes`，先把卡住的地方放行。
 
+正在运行的会话会被跳过：尾屏出现活动 spinner 或 `esc to interrupt` 时不会发送，避免在跑着的任务上打字。
+
 默认只作用于标题或进程包含 `Codex`、`Claude` 的会话，普通 Shell 不受影响。
 
 - 默认开启

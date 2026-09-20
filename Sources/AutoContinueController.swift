@@ -169,23 +169,31 @@ final class AutoContinueController: NSObject, ObservableObject {
     }
 
     private func performAttempt(automatic: Bool) {
-        let sentCount = TerminalManager.shared.sendContinueToTerminalSessions(
-            includeAllWindows: target == .allTerminalWindows
-        )
         let now = Date()
         lastAttemptAt = now
-        lastSentCount = sentCount
 
-        if let sentCount {
-            if automatic {
-                lastStatusMessage = sentCount == 0 ? "本轮没有可继续的会话" : "已自动继续 \(sentCount) 个会话"
-            } else if sentCount == 0 {
-                lastStatusMessage = "没有找到匹配的 Codex / Claude 会话"
-            } else {
-                lastStatusMessage = "已手动继续 \(sentCount) 个会话"
-            }
-        } else {
+        guard let result = TerminalManager.shared.sendContinueToTerminalSessions(
+            includeAllWindows: target == .allTerminalWindows
+        ) else {
+            lastSentCount = nil
             lastStatusMessage = "无法检查 Terminal 会话"
+            UserDefaults.standard.set(now, forKey: "lastAutoContinueAttempt")
+            scheduleNextAttempt()
+            return
+        }
+
+        lastSentCount = result.sent
+
+        if result.sent > 0 {
+            lastStatusMessage = automatic
+                ? "已自动继续 \(result.sent) 个会话"
+                : "已手动继续 \(result.sent) 个会话"
+        } else if result.busy > 0 {
+            lastStatusMessage = "\(result.busy) 个会话正在运行中，已跳过"
+        } else if !automatic {
+            lastStatusMessage = "没有找到匹配的 Codex / Claude 会话"
+        } else {
+            lastStatusMessage = "本轮没有可继续的会话"
         }
 
         UserDefaults.standard.set(now, forKey: "lastAutoContinueAttempt")
