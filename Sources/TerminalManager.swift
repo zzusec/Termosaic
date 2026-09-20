@@ -23,8 +23,10 @@ final class TerminalManager: NSObject, ObservableObject {
     private let logger = Logger(subsystem: "io.github.zzusec.termosaic", category: "TerminalManager")
     private let pollInterval: TimeInterval = 0.2
     private var pollTimer: Timer?
-    private var lastObservedWindowCount = -1
+    private var lastTiledWindowIDs: [Int] = []
     private var lastWindowServerCandidateCount = -1
+    private var pendingWindowIDPasses = 0
+    private let pendingWindowIDPassLimit = 10
     private var orderedWindowIDs: [Int] = []
     private var targetScreen: NSScreen?
     private var started = false
@@ -57,6 +59,7 @@ final class TerminalManager: NSObject, ObservableObject {
     func showDashboard() {
         dashboardRequested = true
         lastWindowServerCandidateCount = -1
+        pendingWindowIDPasses = 0
         targetScreen = screenUnderPointer() ?? NSScreen.main
 
         if let terminal = terminalApplication() {
@@ -169,7 +172,7 @@ final class TerminalManager: NSObject, ObservableObject {
     @objc private func pollTerminalState() {
         guard let terminal = terminalApplication() else {
             terminalWindowCount = 0
-            lastObservedWindowCount = 0
+            lastTiledWindowIDs = []
             if dashboardRequested { phase = .terminalNotRunning }
             return
         }
@@ -188,15 +191,22 @@ final class TerminalManager: NSObject, ObservableObject {
         // small Terminal settings/helper window from the fast count.
         let candidateCount = windowServerCandidateCount(pid: terminal.processIdentifier)
         guard candidateCount != lastWindowServerCandidateCount else { return }
-        lastWindowServerCandidateCount = candidateCount
 
         guard let windowIDs = readTerminalWindowIDs() else { return }
-        let count = windowIDs.count
-        terminalWindowCount = count
-        guard count != lastObservedWindowCount else { return }
+        // A window that was just opened is on screen before Terminal exposes its id.
+        // Keep re-reading for a few passes so it joins the layout instead of floating on top of it.
+        guard windowIDs.count >= candidateCount || pendingWindowIDPasses >= pendingWindowIDPassLimit else {
+            pendingWindowIDPasses += 1
+            return
+        }
+        pendingWindowIDPasses = 0
+        lastWindowServerCandidateCount = candidateCount
 
-        lastObservedWindowCount = count
-        tileTerminalWindows(knownWindowIDs: windowIDs)
+        let orderedWindowIDs = stableWindowOrder(currentWindowIDs: windowIDs)
+        terminalWindowCount = orderedWindowIDs.count
+        guard orderedWindowIDs != lastTiledWindowIDs else { return }
+
+        tileTerminalWindows(knownWindowIDs: orderedWindowIDs)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
             guard let self, self.dashboardRequested else { return }
             self.tileTerminalWindows()
@@ -231,7 +241,7 @@ final class TerminalManager: NSObject, ObservableObject {
     }
 
     private func scheduleTilePasses() {
-        lastObservedWindowCount = -1
+        lastTiledWindowIDs = []
         for delay in [0.2, 0.8] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self, self.dashboardRequested else { return }
@@ -251,7 +261,7 @@ final class TerminalManager: NSObject, ObservableObject {
         let windowIDs = stableWindowOrder(currentWindowIDs: currentWindowIDs)
         let count = windowIDs.count
         terminalWindowCount = count
-        lastObservedWindowCount = count
+        lastTiledWindowIDs = windowIDs
 
         guard count > 0 else {
             phase = .visible
@@ -318,9 +328,12 @@ final class TerminalManager: NSObject, ObservableObject {
         let source = "tell application id \"com.apple.Terminal\" to get id of every window"
         guard let result = executeAppleScript(source) else { return nil }
         guard result.numberOfItems > 0 else { return [] }
+        // Terminal lists windows that are still materializing; their id comes back as
+        // `missing value` and would otherwise occupy a tile that no window can fill.
         return (1...result.numberOfItems).compactMap { index in
-            guard let item = result.atIndex(index) else { return nil }
-            return Int(item.int32Value)
+            guard let item = result.atIndex(index), item.descriptorType == typeSInt32 else { return nil }
+            let id = Int(item.int32Value)
+            return id > 0 ? id : nil
         }
     }
 
