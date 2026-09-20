@@ -122,6 +122,12 @@ struct TermosaicApp: App {
             .keyboardShortcut("2", modifiers: [.command, .option])
             .disabled(!manager.automationAuthorized)
 
+            Button("发送一次“继续”") {
+                autoContinue.sendNow()
+            }
+            .keyboardShortcut("3", modifiers: [.command, .option])
+            .disabled(!manager.automationAuthorized)
+
             if !manager.automationAuthorized {
                 Button("打开自动化设置…") {
                     manager.openAutomationSettings()
@@ -190,11 +196,6 @@ struct TermosaicApp: App {
                     }
                 }
                 .disabled(!autoContinue.isEnabled)
-
-                Button("立即发送一次“继续”") {
-                    autoContinue.sendNow()
-                }
-                .disabled(!manager.automationAuthorized)
 
                 if let nextAttempt = autoContinue.nextAttemptDescription {
                     Text("下次自动重试：\(nextAttempt)")

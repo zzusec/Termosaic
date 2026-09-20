@@ -94,6 +94,7 @@ Menu shortcuts:
 
 - `⌥⌘1` — show or hide the canvas
 - `⌥⌘2` — re-tile on the display under the pointer
+- `⌥⌘3` — send `继续` now, without waiting for the next scheduled attempt
 
 Auto-continue speed and its target live in the **自动“继续”** submenu; canvas preferences live in **偏好设置**. The update line stays on the top level.
 
