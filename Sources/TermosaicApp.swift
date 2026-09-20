@@ -4,12 +4,6 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if UserDefaults.standard.object(forKey: "hideTerminalOnQuit") == nil {
-            UserDefaults.standard.set(true, forKey: "hideTerminalOnQuit")
-        }
-        if UserDefaults.standard.object(forKey: "autoHideCanvasWhenSwitchingApps") == nil {
-            UserDefaults.standard.set(true, forKey: "autoHideCanvasWhenSwitchingApps")
-        }
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
             selector: #selector(workspaceDidActivateApplication(_:)),
@@ -23,8 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func workspaceDidActivateApplication(_ notification: Notification) {
-        guard UserDefaults.standard.bool(forKey: "autoHideCanvasWhenSwitchingApps"),
-              let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+        guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
               application.bundleIdentifier != "com.apple.Terminal",
               application.bundleIdentifier != "io.github.zzusec.termosaic" else { return }
         TerminalManager.shared.hideDashboardIfVisible()
@@ -49,8 +42,6 @@ struct TermosaicApp: App {
     @StateObject private var hotKeys = GlobalHotKeyController.shared
     @StateObject private var autoContinue = AutoContinueController.shared
     @StateObject private var updater = UpdateController.shared
-    @AppStorage("hideTerminalOnQuit") private var hideTerminalOnQuit = true
-    @AppStorage("autoHideCanvasWhenSwitchingApps") private var autoHideCanvasWhenSwitchingApps = true
 
     private var statusText: String {
         switch manager.phase {
@@ -167,7 +158,7 @@ struct TermosaicApp: App {
                 )
 
                 Divider()
-                Menu("重试间隔：\(autoContinue.interval.displayName)") {
+                Menu("间隔：\(autoContinue.interval.displayName)") {
                     ForEach(AutoContinueInterval.allCases) { interval in
                         Button {
                             autoContinue.setInterval(interval)
@@ -182,7 +173,7 @@ struct TermosaicApp: App {
                 }
                 .disabled(!autoContinue.isEnabled)
 
-                Menu("发送范围：\(autoContinue.target.displayName)") {
+                Menu("范围：\(autoContinue.target.displayName)") {
                     ForEach(AutoContinueTarget.allCases) { target in
                         Button {
                             autoContinue.setTarget(target)
@@ -197,7 +188,7 @@ struct TermosaicApp: App {
                 }
                 .disabled(!autoContinue.isEnabled)
 
-                Menu("5 小时窗口：\(autoContinue.windowScheduleDescription)") {
+                Menu("激活 5h 窗口：\(autoContinue.windowScheduleDescription)") {
                     Button {
                         autoContinue.setWindowStartHour(nil)
                     } label: {
@@ -207,7 +198,8 @@ struct TermosaicApp: App {
                             Text("关闭")
                         }
                     }
-                    ForEach(0..<24, id: \.self) { hour in
+                    Divider()
+                    ForEach(AutoContinueController.windowStartHours, id: \.self) { hour in
                         Button {
                             autoContinue.setWindowStartHour(hour)
                         } label: {
@@ -222,7 +214,7 @@ struct TermosaicApp: App {
                 .disabled(!autoContinue.isEnabled)
 
                 if let nextAttempt = autoContinue.nextAttemptDescription {
-                    Text("下次自动重试：\(nextAttempt)")
+                    Text("下次：\(nextAttempt)")
                 }
                 if let statusMessage = autoContinue.lastStatusMessage {
                     Text(statusMessage)
@@ -243,10 +235,6 @@ struct TermosaicApp: App {
             }
 
             Divider()
-            Menu("偏好设置") {
-                Toggle("切换到其他应用时隐藏终端画布", isOn: $autoHideCanvasWhenSwitchingApps)
-                Toggle("退出时隐藏 Terminal", isOn: $hideTerminalOnQuit)
-            }
 
             Divider()
             Button("退出 Termosaic") {

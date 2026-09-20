@@ -45,6 +45,10 @@ enum AutoContinueTarget: String, CaseIterable, Identifiable {
 final class AutoContinueController: NSObject, ObservableObject {
     static let shared = AutoContinueController()
 
+    /// Anchors for the five-hour usage windows. Since the window repeats every five hours,
+    /// these five choices cover every whole-hour alignment a user needs.
+    static let windowStartHours = [0, 5, 10, 15, 20]
+
     @Published private(set) var isEnabled: Bool
     @Published private(set) var interval: AutoContinueInterval
     @Published private(set) var target: AutoContinueTarget
@@ -67,7 +71,7 @@ final class AutoContinueController: NSObject, ObservableObject {
         interval = AutoContinueInterval.saved
         target = AutoContinueTarget.saved
         let savedHour = UserDefaults.standard.integer(forKey: "autoContinueWindowStartHour")
-        windowStartHour = (0..<24).contains(savedHour) ? savedHour : nil
+        windowStartHour = Self.windowStartHours.contains(savedHour) ? savedHour : nil
         lastAttemptAt = UserDefaults.standard.object(forKey: "lastAutoContinueAttempt") as? Date
         super.init()
     }
@@ -107,7 +111,7 @@ final class AutoContinueController: NSObject, ObservableObject {
 
     var windowScheduleDescription: String {
         guard let windowStartHour else { return "关闭" }
-        return String(format: "从 %02d:00 起", windowStartHour)
+        return String(format: "%02d:00 起", windowStartHour)
     }
 
     func sendNow() {

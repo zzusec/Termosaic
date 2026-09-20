@@ -176,10 +176,7 @@ final class TerminalManager: NSObject, ObservableObject {
     }
 
     func prepareForTermination() {
-        let preferenceExists = UserDefaults.standard.object(forKey: "hideTerminalOnQuit") != nil
-        if !preferenceExists || UserDefaults.standard.bool(forKey: "hideTerminalOnQuit") {
-            hideDashboard(activateManager: false)
-        }
+        hideDashboard(activateManager: false)
     }
 
     private func startPolling() {
