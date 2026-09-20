@@ -22,62 +22,77 @@ final class WindowSchedulePicker: NSObject {
         let controller = AutoContinueController.shared
 
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 300, height: 116),
-            styleMask: [.titled, .closable, .utilityWindow],
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 122),
+            styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
         panel.title = "激活 5h 窗口"
         panel.level = .floating
         panel.isReleasedWhenClosed = false
-        panel.center()
+        panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        panel.standardWindowButton(.zoomButton)?.isHidden = true
 
         let label = NSTextField(labelWithString: "起始时间")
-        label.frame = NSRect(x: 20, y: 62, width: 62, height: 17)
-        label.alignment = .right
-        panel.contentView?.addSubview(label)
-
-        let picker = ScrollDatePicker(frame: NSRect(x: 88, y: 56, width: 130, height: 28))
+        let picker = ScrollDatePicker()
         picker.datePickerStyle = .textFieldAndStepper
         picker.datePickerElements = .hourMinute
         picker.dateValue = controller.windowStartDate ?? Date()
-        panel.contentView?.addSubview(picker)
-        self.picker = picker
 
         let hint = NSTextField(labelWithString: "滚动微调 5 分钟（⇧ 按小时）· 每 5 小时一轮")
-        hint.frame = NSRect(x: 20, y: 32, width: 260, height: 14)
-        hint.font = NSFont.systemFont(ofSize: 11)
+        hint.font = .systemFont(ofSize: 11)
         hint.textColor = .secondaryLabelColor
-        panel.contentView?.addSubview(hint)
 
-        let disable = NSButton(frame: NSRect(x: 20, y: 12, width: 84, height: 26))
-        disable.title = "停用"
-        disable.target = self
-        disable.action = #selector(disableWindows)
-        disable.bezelStyle = .rounded
+        let disable = button(title: "停用", action: #selector(disableWindows))
         disable.isEnabled = controller.windowStartMinutes != nil
-        panel.contentView?.addSubview(disable)
-
-        let cancel = NSButton(frame: NSRect(x: 134, y: 12, width: 74, height: 26))
-        cancel.title = "取消"
-        cancel.target = self
-        cancel.action = #selector(close)
-        cancel.bezelStyle = .rounded
+        let cancel = button(title: "取消", action: #selector(close))
         cancel.keyEquivalent = "\u{1b}"
-        panel.contentView?.addSubview(cancel)
-
-        let confirm = NSButton(frame: NSRect(x: 208, y: 12, width: 74, height: 26))
-        confirm.title = "好"
-        confirm.target = self
-        confirm.action = #selector(confirmSelection)
-        confirm.bezelStyle = .rounded
+        let confirm = button(title: "好", action: #selector(confirmSelection))
         confirm.keyEquivalent = "\r"
-        panel.contentView?.addSubview(confirm)
-        panel.defaultButtonCell = confirm.cell as? NSButtonCell
+
+        for view in [label, picker, hint, disable, cancel, confirm] {
+            view.translatesAutoresizingMaskIntoConstraints = false
+            panel.contentView?.addSubview(view)
+        }
+
+        guard let content = panel.contentView else { return }
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 20),
+            label.topAnchor.constraint(equalTo: content.topAnchor, constant: 18),
+
+            picker.leadingAnchor.constraint(equalTo: label.trailingAnchor, constant: 12),
+            picker.centerYAnchor.constraint(equalTo: label.centerYAnchor),
+            picker.widthAnchor.constraint(equalToConstant: 120),
+
+            hint.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 20),
+            hint.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 12),
+            hint.trailingAnchor.constraint(lessThanOrEqualTo: content.trailingAnchor, constant: -20),
+
+            confirm.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -20),
+            confirm.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -18),
+            confirm.widthAnchor.constraint(equalToConstant: 74),
+
+            cancel.trailingAnchor.constraint(equalTo: confirm.leadingAnchor, constant: -10),
+            cancel.centerYAnchor.constraint(equalTo: confirm.centerYAnchor),
+            cancel.widthAnchor.constraint(equalToConstant: 74),
+
+            disable.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 20),
+            disable.centerYAnchor.constraint(equalTo: confirm.centerYAnchor),
+            disable.widthAnchor.constraint(equalToConstant: 68)
+        ])
 
         self.panel = panel
+        self.picker = picker
         NSApp.activate(ignoringOtherApps: true)
+        panel.center()
         panel.makeKeyAndOrderFront(nil)
+        panel.makeFirstResponder(confirm)
+    }
+
+    private func button(title: String, action: Selector) -> NSButton {
+        let button = NSButton(title: title, target: self, action: action)
+        button.bezelStyle = .rounded
+        return button
     }
 
     @objc private func close() {

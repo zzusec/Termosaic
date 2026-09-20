@@ -23,6 +23,7 @@ final class TerminalManager: NSObject, ObservableObject {
     private let logger = Logger(subsystem: "io.github.zzusec.termosaic", category: "TerminalManager")
     private let pollInterval: TimeInterval = 0.2
     private var pollTimer: Timer?
+    private var menuTrackingObservers: [NSObjectProtocol] = []
     private var lastTiledWindowIDs: [Int] = []
     private var lastWindowServerCandidateCount = -1
     private var pendingWindowIDPasses = 0
@@ -53,6 +54,7 @@ final class TerminalManager: NSObject, ObservableObject {
     func start() {
         guard !started else { return }
         started = true
+        observeMenuTracking()
         startPolling()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
@@ -200,6 +202,31 @@ final class TerminalManager: NSObject, ObservableObject {
         // mutate published state while the user has the menu open.
         RunLoop.main.add(timer, forMode: .default)
         pollTimer = timer
+    }
+
+    /// Polling stops entirely while a menu is being tracked, so nothing invalidates the menu
+    /// the user is reading. Window changes made during that time are picked up on resume.
+    private func observeMenuTracking() {
+        let center = NotificationCenter.default
+        menuTrackingObservers = [
+            center.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil, queue: .main) { _ in
+                Task { @MainActor in TerminalManager.shared.stopPolling() }
+            },
+            center.addObserver(forName: NSMenu.didEndTrackingNotification, object: nil, queue: .main) { _ in
+                Task { @MainActor in TerminalManager.shared.resumePolling() }
+            }
+        ]
+    }
+
+    private func stopPolling() {
+        pollTimer?.invalidate()
+        pollTimer = nil
+    }
+
+    private func resumePolling() {
+        guard pollTimer == nil else { return }
+        lastWindowServerCandidateCount = -1
+        startPolling()
     }
 
     @objc private func pollTerminalState() {
