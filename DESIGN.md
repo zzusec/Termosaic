@@ -22,4 +22,4 @@ A quiet, menu-bar-only macOS utility. It must remain available without creating 
 - The top level stays short and stays about the core job: canvas toggle, re-tile, and sending `继续` once, each with its own menu shortcut, followed by the global shortcut. Auto-continue gets one named submenu; update state is one quiet line plus one action.
 - Submenus stay short. Start times are picked in a small floating panel, never as a 24-row clock inside the menu.
 - Automation permission failures explain both the problem and the exact recovery path in System Settings.
-- The menu-bar control is the sole interface and holds every action, quota-aware retry status, and online-update state.
+- The menu-bar control is the sole interface and holds every action, auto-continue status, and online-update state.

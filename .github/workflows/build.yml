@@ -7,6 +7,8 @@ on:
 jobs:
   macos:
     runs-on: macos-15
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
       - name: Test grid layout
@@ -25,3 +27,14 @@ jobs:
         run: Tests/test_update_installer.sh
       - name: Build and verify DMG
         run: ./create-dmg.sh
+      - name: Publish release assets
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Info.plist)"
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "Termosaic ${GITHUB_REF_NAME}" \
+            --generate-notes \
+            "dist/Termosaic-v${VERSION}-macOS.dmg" \
+            "dist/Termosaic-v${VERSION}-macOS.dmg.sha256"
