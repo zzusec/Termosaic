@@ -128,15 +128,15 @@ struct TermosaicApp: App {
             Divider()
             Menu("全局快捷键：\(hotKeys.selectedShortcut.displayName)") {
                 ForEach(GlobalShortcut.allCases) { shortcut in
-                    Button {
-                        hotKeys.setShortcut(shortcut)
-                    } label: {
-                        if hotKeys.selectedShortcut == shortcut {
-                            Label(shortcut.menuTitle, systemImage: "checkmark")
-                        } else {
-                            Text(shortcut.menuTitle)
-                        }
-                    }
+                    Toggle(
+                        shortcut.menuTitle,
+                        isOn: Binding(
+                            get: { hotKeys.selectedShortcut == shortcut },
+                            set: { selected in
+                                if selected { hotKeys.setShortcut(shortcut) }
+                            }
+                        )
+                    )
                 }
             }
 
@@ -160,30 +160,30 @@ struct TermosaicApp: App {
                 Divider()
                 Menu("间隔：\(autoContinue.interval.displayName)") {
                     ForEach(AutoContinueInterval.allCases) { interval in
-                        Button {
-                            autoContinue.setInterval(interval)
-                        } label: {
-                            if autoContinue.interval == interval {
-                                Label(interval.displayName, systemImage: "checkmark")
-                            } else {
-                                Text(interval.displayName)
-                            }
-                        }
+                        Toggle(
+                            interval.displayName,
+                            isOn: Binding(
+                                get: { autoContinue.interval == interval },
+                                set: { selected in
+                                    if selected { autoContinue.setInterval(interval) }
+                                }
+                            )
+                        )
                     }
                 }
                 .disabled(!autoContinue.isEnabled)
 
                 Menu("范围：\(autoContinue.target.displayName)") {
                     ForEach(AutoContinueTarget.allCases) { target in
-                        Button {
-                            autoContinue.setTarget(target)
-                        } label: {
-                            if autoContinue.target == target {
-                                Label(target.displayName, systemImage: "checkmark")
-                            } else {
-                                Text(target.displayName)
-                            }
-                        }
+                        Toggle(
+                            target.displayName,
+                            isOn: Binding(
+                                get: { autoContinue.target == target },
+                                set: { selected in
+                                    if selected { autoContinue.setTarget(target) }
+                                }
+                            )
+                        )
                     }
                 }
                 .disabled(!autoContinue.isEnabled)
@@ -213,8 +213,6 @@ struct TermosaicApp: App {
             if let detail = updateDetailText {
                 Text(detail)
             }
-
-            Divider()
 
             Divider()
             Button("退出 Termosaic") {
