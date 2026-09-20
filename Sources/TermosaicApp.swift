@@ -188,28 +188,8 @@ struct TermosaicApp: App {
                 }
                 .disabled(!autoContinue.isEnabled)
 
-                Menu("激活 5h 窗口：\(autoContinue.windowScheduleDescription)") {
-                    Button {
-                        autoContinue.setWindowStartHour(nil)
-                    } label: {
-                        if autoContinue.windowStartHour == nil {
-                            Label("关闭", systemImage: "checkmark")
-                        } else {
-                            Text("关闭")
-                        }
-                    }
-                    Divider()
-                    ForEach(AutoContinueController.windowStartHours, id: \.self) { hour in
-                        Button {
-                            autoContinue.setWindowStartHour(hour)
-                        } label: {
-                            if autoContinue.windowStartHour == hour {
-                                Label(String(format: "%02d:00", hour), systemImage: "checkmark")
-                            } else {
-                                Text(String(format: "%02d:00", hour))
-                            }
-                        }
-                    }
+                Button("激活 5h 窗口：\(autoContinue.windowScheduleDescription)") {
+                    WindowSchedulePicker.shared.show()
                 }
                 .disabled(!autoContinue.isEnabled)
 

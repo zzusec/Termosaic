@@ -96,7 +96,7 @@ Menu shortcuts:
 - `⌥⌘2` — re-tile on the display under the pointer
 - `⌥⌘3` — send `继续` now, without waiting for the next scheduled attempt
 
-Auto-continue interval, target, and the **激活 5h 窗口** anchor all live in the 自动“继续” submenu. The update line stays on the top level. Hiding the canvas when another application becomes active, and hiding Terminal on quit, are always on.
+Auto-continue interval and target live in the 自动“继续” submenu; **激活 5h 窗口** opens a small time panel where any start time can be set. The update line stays on the top level. Hiding the canvas when another application becomes active, and hiding Terminal on quit, are always on.
 
 > `⌘O` normally means “Open” in macOS applications. Select an alternative if you want to preserve that command.
 
@@ -113,7 +113,7 @@ By default the target is sessions whose title or process list contains `Codex` o
 - Enabled by default
 - Default interval: 30 minutes
 - Available intervals: 5, 10, 15, 30, 45, 60, or 120 minutes
-- Optional **激活 5h 窗口**: pick an anchor (00:00, 05:00, 10:00, 15:00, 20:00) and Termosaic also resumes at the start of every five-hour window from there — 05:00, then 10:00, 15:00…
+- Optional **激活 5h 窗口**: set any start time and Termosaic also resumes at the start of every five-hour window from there — 05:00, then 10:00, 15:00…
 - Safe default target: sessions whose title or process list contains `Codex` or `Claude`
 - Optional target: all Terminal windows
 - `⌥⌘3` sends one pass immediately, without waiting for the next scheduled attempt

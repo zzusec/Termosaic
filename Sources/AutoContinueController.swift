@@ -45,14 +45,10 @@ enum AutoContinueTarget: String, CaseIterable, Identifiable {
 final class AutoContinueController: NSObject, ObservableObject {
     static let shared = AutoContinueController()
 
-    /// Anchors for the five-hour usage windows. Since the window repeats every five hours,
-    /// these five choices cover every whole-hour alignment a user needs.
-    static let windowStartHours = [0, 5, 10, 15, 20]
-
     @Published private(set) var isEnabled: Bool
     @Published private(set) var interval: AutoContinueInterval
     @Published private(set) var target: AutoContinueTarget
-    @Published private(set) var windowStartHour: Int?
+    @Published private(set) var windowStartMinutes: Int?
     @Published private(set) var nextAttemptAt: Date?
     @Published private(set) var lastAttemptAt: Date?
     @Published private(set) var lastSentCount: Int?
@@ -70,8 +66,8 @@ final class AutoContinueController: NSObject, ObservableObject {
         isEnabled = UserDefaults.standard.bool(forKey: "autoContinueEnabled")
         interval = AutoContinueInterval.saved
         target = AutoContinueTarget.saved
-        let savedHour = UserDefaults.standard.integer(forKey: "autoContinueWindowStartHour")
-        windowStartHour = Self.windowStartHours.contains(savedHour) ? savedHour : nil
+        let savedMinutes = UserDefaults.standard.integer(forKey: "autoContinueWindowStartMinutes")
+        windowStartMinutes = (0..<1440).contains(savedMinutes) ? savedMinutes : nil
         lastAttemptAt = UserDefaults.standard.object(forKey: "lastAutoContinueAttempt") as? Date
         super.init()
     }
@@ -99,19 +95,29 @@ final class AutoContinueController: NSObject, ObservableObject {
         UserDefaults.standard.set(newTarget.rawValue, forKey: "autoContinueTarget")
     }
 
-    func setWindowStartHour(_ hour: Int?) {
-        windowStartHour = hour
-        if let hour {
-            UserDefaults.standard.set(hour, forKey: "autoContinueWindowStartHour")
+    func setWindowStartMinutes(_ minutes: Int?) {
+        windowStartMinutes = minutes
+        if let minutes {
+            UserDefaults.standard.set(minutes, forKey: "autoContinueWindowStartMinutes")
         } else {
-            UserDefaults.standard.set(-1, forKey: "autoContinueWindowStartHour")
+            UserDefaults.standard.set(-1, forKey: "autoContinueWindowStartMinutes")
         }
         scheduleWindow()
     }
 
     var windowScheduleDescription: String {
-        guard let windowStartHour else { return "关闭" }
-        return String(format: "%02d:00 起", windowStartHour)
+        guard let windowStartMinutes else { return "关闭" }
+        return String(format: "%02d:%02d 起", windowStartMinutes / 60, windowStartMinutes % 60)
+    }
+
+    /// Today's anchor date, used to seed the time picker.
+    var windowStartDate: Date? {
+        guard let windowStartMinutes else { return nil }
+        var components = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        components.hour = windowStartMinutes / 60
+        components.minute = windowStartMinutes % 60
+        components.second = 0
+        return Calendar.current.date(from: components)
     }
 
     func sendNow() {
@@ -148,11 +154,11 @@ final class AutoContinueController: NSObject, ObservableObject {
     private func scheduleWindow() {
         windowTimer?.invalidate()
         windowTimer = nil
-        guard isEnabled, let windowStartHour else { return }
+        guard isEnabled, let windowStartMinutes else { return }
 
         var components = Calendar.current.dateComponents([.year, .month, .day], from: Date())
-        components.hour = windowStartHour
-        components.minute = 0
+        components.hour = windowStartMinutes / 60
+        components.minute = windowStartMinutes % 60
         components.second = 0
         var fireDate = Calendar.current.date(from: components) ?? Date()
         while fireDate <= Date() {

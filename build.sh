@@ -37,6 +37,7 @@ sources=(
   "$ROOT/Sources/TerminalManager.swift"
   "$ROOT/Sources/GlobalHotKeyController.swift"
   "$ROOT/Sources/AutoContinueController.swift"
+  "$ROOT/Sources/WindowSchedulePicker.swift"
   "$ROOT/Sources/UpdateController.swift"
   "$ROOT/Sources/TermosaicApp.swift"
 )
