@@ -151,18 +151,7 @@ struct TermosaicApp: App {
             }
 
             Divider()
-            Text(updateVersionText)
-            Button(updater.isChecking ? "正在检查…" : "检查更新") {
-                updater.checkForUpdates()
-            }
-            .disabled(updater.isChecking || updater.isDownloading || updater.isInstallingUpdate)
-
-            if let detail = updateDetailText {
-                Text(detail)
-            }
-
-            Divider()
-            Menu("更多设置") {
+            Menu("自动“继续”") {
                 Toggle(
                     "自动发送“继续”",
                     isOn: Binding(
@@ -171,6 +160,7 @@ struct TermosaicApp: App {
                     )
                 )
 
+                Divider()
                 Menu("重试间隔：\(autoContinue.interval.displayName)") {
                     ForEach(AutoContinueInterval.allCases) { interval in
                         Button {
@@ -206,7 +196,7 @@ struct TermosaicApp: App {
                 }
                 .disabled(!manager.automationAuthorized)
 
-                if autoContinue.isEnabled, let nextAttempt = autoContinue.nextAttemptDescription {
+                if let nextAttempt = autoContinue.nextAttemptDescription {
                     Text("下次自动重试：\(nextAttempt)")
                 }
                 if let statusMessage = autoContinue.lastStatusMessage {
@@ -214,8 +204,21 @@ struct TermosaicApp: App {
                 } else if let sentCount = autoContinue.lastSentCount {
                     Text("上次已发送到 \(sentCount) 个会话")
                 }
+            }
 
-                Divider()
+            Divider()
+            Text(updateVersionText)
+            Button(updater.isChecking ? "正在检查…" : "检查更新") {
+                updater.checkForUpdates()
+            }
+            .disabled(updater.isChecking || updater.isDownloading || updater.isInstallingUpdate)
+
+            if let detail = updateDetailText {
+                Text(detail)
+            }
+
+            Divider()
+            Menu("偏好设置") {
                 Toggle("切换到其他应用时隐藏终端画布", isOn: $autoHideCanvasWhenSwitchingApps)
                 Toggle("退出时隐藏 Terminal", isOn: $hideTerminalOnQuit)
             }
