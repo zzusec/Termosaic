@@ -22,7 +22,7 @@ Termosaic organizes the windows you already have in Apple's built-in `Terminal.a
 - Treats every Terminal window as one logical canvas that can be shown or hidden together.
 - Can automatically hide the canvas when another application becomes active.
 - Provides a configurable global show-and-rearrange shortcut; the default is `⌘O`.
-- Sends `继续` only while a recognized Codex/Claude quota-limit screen is visible, then stops typing after recovery.
+- Sends `继续` to Codex/Claude sessions on a timer so any interruption—quota screens, SSH or network drops, or stalled prompts—gets resumed, and answers `yes` when a confirmation prompt is waiting.
 - Checks GitHub Releases and can securely download, validate, install, and relaunch updates automatically.
 - Runs only in the menu bar—no Dock icon and no permanent desktop control window.
 - Ships as a universal Apple Silicon and Intel application.
@@ -100,21 +100,24 @@ Auto-continue speed and its target live in the **自动“继续”** submenu; c
 
 > `⌘O` normally means “Open” in macOS applications. Select an alternative if you want to preserve that command.
 
-## Quota-aware automatic continue
+## Automatic continue
 
-Termosaic periodically checks the current screen of matching Codex/Claude Terminal sessions. It sends `继续` only while a recognized quota or rate-limit message is currently visible.
+Termosaic periodically resumes matching Codex/Claude Terminal sessions so work recovers on its own, whatever interrupted it: a usage-limit screen, an SSH or network drop, a crashed foreground process, or a prompt waiting for input.
 
-Once Codex replies, starts working, or returns to its normal prompt and the limit screen disappears, Termosaic stops typing. The timer stays armed so it can respond to a future quota event without injecting text into healthy sessions.
+Each eligible session receives `继续`. If the session is waiting on a confirmation instead (`(y/n)`, `yes/no`, `是否继续`, and similar prompts), Termosaic answers `yes` so the block clears.
+
+By default the target is sessions whose title or process list contains `Codex` or `Claude`, so ordinary shells are left alone.
 
 - Enabled by default
 - Default interval: 30 minutes
 - Available intervals: 5, 10, 15, 30, 45, 60, or 120 minutes
+- Optional **5 小时窗口**: pick a start hour and Termosaic also resumes at the start of every following five-hour window (05:00, then 10:00, 15:00…)
 - Safe default target: sessions whose title or process list contains `Codex` or `Claude`
 - Optional target: all Terminal windows
-- **立即发送一次“继续”** manually bypasses quota-screen detection
+- `⌥⌘3` sends one pass immediately, without waiting for the next scheduled attempt
 - Settings persist across launches
 
-Use the “all Terminal windows” target carefully: a normal shell may receive `继续` as a command.
+Use the “all Terminal windows” target carefully: a normal shell may receive `继续` or `yes` as a command.
 
 ## Online automatic updates
 

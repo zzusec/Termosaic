@@ -110,12 +110,10 @@ final class TerminalManager: NSObject, ObservableObject {
         retile()
     }
 
-    func sendContinueToTerminalSessions(includeAllWindows: Bool, onlyWhenQuotaBlocked: Bool = false) -> Int? {
+    func sendContinueToTerminalSessions(includeAllWindows: Bool) -> Int? {
         let sendToAll = includeAllWindows ? "true" : "false"
-        let requireQuotaBlock = onlyWhenQuotaBlocked ? "true" : "false"
         let source = """
         set sendToAll to \(sendToAll)
-        set requireQuotaBlock to \(requireQuotaBlock)
         set sentCount to 0
         tell application id "com.apple.Terminal"
             repeat with windowRef in every window
@@ -124,7 +122,6 @@ final class TerminalManager: NSObject, ObservableObject {
                     set activeTab to selected tab of currentWindow
                     set windowName to name of currentWindow as text
                     set processText to (processes of activeTab) as text
-                    set screenText to get contents of selected tab of currentWindow
                     set shouldSend to sendToAll
                     if shouldSend is false then
                         ignoring case
@@ -134,15 +131,20 @@ final class TerminalManager: NSObject, ObservableObject {
                         end ignoring
                     end if
 
-                    set quotaBlocked to false
-                    ignoring case
-                        if screenText contains "you've hit your usage limit" or screenText contains "you have hit your usage limit" or screenText contains "usage limit reached" or screenText contains "rate limit reached" or screenText contains "try again in" or screenText contains "额度已用完" or screenText contains "已达到使用上限" or screenText contains "达到使用限额" or screenText contains "限额将在" or screenText contains "请稍后重试" then
-                            set quotaBlocked to true
-                        end if
-                    end ignoring
-
-                    if shouldSend and ((requireQuotaBlock is false) or quotaBlocked) then
-                        do script "继续" in activeTab
+                    if shouldSend then
+                        set screenText to get contents of selected tab of currentWindow
+                        try
+                            set tail to text -1200 thru -1 of screenText
+                        on error
+                            set tail to screenText
+                        end try
+                        set answer to "继续"
+                        ignoring case
+                            if tail contains "y/n" or tail contains "yes/no" or tail contains "want to continue" or tail contains "输入 yes" or tail contains "是否继续" or tail contains "确认继续" then
+                                set answer to "yes"
+                            end if
+                        end ignoring
+                        do script answer in activeTab
                         set sentCount to sentCount + 1
                     end if
                 end try

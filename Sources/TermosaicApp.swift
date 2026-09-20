@@ -197,6 +197,30 @@ struct TermosaicApp: App {
                 }
                 .disabled(!autoContinue.isEnabled)
 
+                Menu("5 小时窗口：\(autoContinue.windowScheduleDescription)") {
+                    Button {
+                        autoContinue.setWindowStartHour(nil)
+                    } label: {
+                        if autoContinue.windowStartHour == nil {
+                            Label("关闭", systemImage: "checkmark")
+                        } else {
+                            Text("关闭")
+                        }
+                    }
+                    ForEach(0..<24, id: \.self) { hour in
+                        Button {
+                            autoContinue.setWindowStartHour(hour)
+                        } label: {
+                            if autoContinue.windowStartHour == hour {
+                                Label(String(format: "%02d:00", hour), systemImage: "checkmark")
+                            } else {
+                                Text(String(format: "%02d:00", hour))
+                            }
+                        }
+                    }
+                }
+                .disabled(!autoContinue.isEnabled)
+
                 if let nextAttempt = autoContinue.nextAttemptDescription {
                     Text("下次自动重试：\(nextAttempt)")
                 }

@@ -30,7 +30,7 @@ Show every existing Terminal.app shell window as one balanced wall on the curren
 - Remain available only from the macOS menu bar, with no Dock icon or desktop control window.
 - Check public GitHub Releases online and securely stage, validate, replace, and relaunch newer Termosaic versions.
 - Provide a persisted, configurable global shortcut that shows and forcibly re-tiles the complete Terminal mosaic.
-- Optionally check matching Codex/Claude Terminal sessions on a persisted interval, send “继续” only while a recognized quota-limit screen is visible, and stop typing after the limit screen disappears.
+- Optionally resume matching Codex/Claude Terminal sessions on a persisted interval, sending “继续” so any interruption recovers and answering `yes` when a confirmation prompt blocks the session.
 
 ## Durable Constraints
 
