@@ -95,7 +95,7 @@ Menu shortcuts:
 - `⌥⌘1` — show or hide the canvas
 - `⌥⌘2` — re-tile on the display under the pointer
 
-Auto-continue speed, its target, the global shortcut, and the canvas preferences live under **更多设置**.
+Auto-continue speed, its target, and the canvas preferences live under **更多设置**.
 
 > `⌘O` normally means “Open” in macOS applications. Select an alternative if you want to preserve that command.
 

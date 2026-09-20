@@ -129,6 +129,28 @@ struct TermosaicApp: App {
             }
 
             Divider()
+            Menu("全局快捷键：\(hotKeys.selectedShortcut.displayName)") {
+                ForEach(GlobalShortcut.allCases) { shortcut in
+                    Button {
+                        hotKeys.setShortcut(shortcut)
+                    } label: {
+                        if hotKeys.selectedShortcut == shortcut {
+                            Label(shortcut.menuTitle, systemImage: "checkmark")
+                        } else {
+                            Text(shortcut.menuTitle)
+                        }
+                    }
+                }
+            }
+
+            if hotKeys.selectedShortcut == .commandO {
+                Text("⌘O 会覆盖其他应用的“打开”快捷键")
+            }
+            if let error = hotKeys.registrationError {
+                Text(error)
+            }
+
+            Divider()
             Text(updateVersionText)
             Button(updater.isChecking ? "正在检查…" : "检查更新") {
                 updater.checkForUpdates()
@@ -191,28 +213,6 @@ struct TermosaicApp: App {
                     Text(statusMessage)
                 } else if let sentCount = autoContinue.lastSentCount {
                     Text("上次已发送到 \(sentCount) 个会话")
-                }
-
-                Divider()
-                Menu("全局快捷键：\(hotKeys.selectedShortcut.displayName)") {
-                    ForEach(GlobalShortcut.allCases) { shortcut in
-                        Button {
-                            hotKeys.setShortcut(shortcut)
-                        } label: {
-                            if hotKeys.selectedShortcut == shortcut {
-                                Label(shortcut.menuTitle, systemImage: "checkmark")
-                            } else {
-                                Text(shortcut.menuTitle)
-                            }
-                        }
-                    }
-                }
-
-                if hotKeys.selectedShortcut == .commandO {
-                    Text("⌘O 会覆盖其他应用的“打开”快捷键")
-                }
-                if let error = hotKeys.registrationError {
-                    Text(error)
                 }
 
                 Divider()
