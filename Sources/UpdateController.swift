@@ -131,7 +131,7 @@ final class UpdateController: NSObject, ObservableObject {
     private func fetchLatestRelease() async throws -> GitHubRelease {
         let url = URL(string: "https://api.github.com/repos/\(repository)/releases/latest")!
         var request = URLRequest(url: url)
-        request.setValue("Termosaic/\(currentSemanticVersion?.description ?? "unknown")", forHTTPHeaderField: "User-Agent")
+        request.setValue("TermYes/\(currentSemanticVersion?.description ?? "unknown")", forHTTPHeaderField: "User-Agent")
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         let (data, response) = try await URLSession.shared.data(for: request)
         try validateHTTP(response)
@@ -140,7 +140,7 @@ final class UpdateController: NSObject, ObservableObject {
 
     private func downloadAndStage(release: GitHubRelease) async throws -> URL {
         guard let version = SemanticVersion(release.tagName) else { throw UpdateError.invalidVersion }
-        let expectedDMGName = "Termosaic-v\(version)-macOS.dmg"
+        let expectedDMGName = "TermYes-v\(version)-macOS.dmg"
         guard let dmgAsset = release.assets.first(where: { $0.name == expectedDMGName }),
               let checksumAsset = release.assets.first(where: { $0.name == "\(expectedDMGName).sha256" }) else {
             throw UpdateError.missingAssets
@@ -174,7 +174,7 @@ final class UpdateController: NSObject, ObservableObject {
 
     private func stageApplication(from dmgURL: URL, version: SemanticVersion, cacheDirectory: URL) throws -> URL {
         let mountPoint = FileManager.default.temporaryDirectory
-            .appendingPathComponent("TermosaicUpdate-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("TermYesUpdate-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: mountPoint, withIntermediateDirectories: true)
 
         let attach = runTool("/usr/bin/hdiutil", [
@@ -186,10 +186,10 @@ final class UpdateController: NSObject, ObservableObject {
             try? FileManager.default.removeItem(at: mountPoint)
         }
 
-        let sourceApp = mountPoint.appendingPathComponent("Termosaic.app", isDirectory: true)
+        let sourceApp = mountPoint.appendingPathComponent("TermYes.app", isDirectory: true)
         guard FileManager.default.fileExists(atPath: sourceApp.path) else { throw UpdateError.appMissingFromDMG }
 
-        let stagedApp = cacheDirectory.appendingPathComponent("Termosaic-v\(version).app", isDirectory: true)
+        let stagedApp = cacheDirectory.appendingPathComponent("TermYes-v\(version).app", isDirectory: true)
         if FileManager.default.fileExists(atPath: stagedApp.path) { try FileManager.default.removeItem(at: stagedApp) }
         let copy = runTool("/usr/bin/ditto", [sourceApp.path, stagedApp.path])
         guard copy.status == 0 else { throw UpdateError.stagingFailed(copy.error) }
@@ -216,10 +216,10 @@ final class UpdateController: NSObject, ObservableObject {
             throw UpdateError.applicationsNotWritable
         }
 
-        let helper = installedApp.appendingPathComponent("Contents/Helpers/TermosaicUpdateInstaller")
+        let helper = installedApp.appendingPathComponent("Contents/Helpers/TermYesUpdateInstaller")
         guard FileManager.default.isExecutableFile(atPath: helper.path) else { throw UpdateError.helperMissing }
 
-        let backup = installedApp.deletingLastPathComponent().appendingPathComponent(".Termosaic.app.backup")
+        let backup = installedApp.deletingLastPathComponent().appendingPathComponent(".TermYes.app.backup")
         let log = try updateCacheDirectory().appendingPathComponent("update-installer.log")
         let process = Process()
         process.executableURL = helper
@@ -295,11 +295,11 @@ final class UpdateController: NSObject, ObservableObject {
             case .invalidChecksumFile: return "SHA-256 文件格式无效"
             case .checksumMismatch: return "下载文件的 SHA-256 不匹配"
             case .mountFailed(let message): return "无法挂载 DMG：\(message)"
-            case .appMissingFromDMG: return "DMG 中没有 Termosaic.app"
+            case .appMissingFromDMG: return "DMG 中没有 TermYes.app"
             case .stagingFailed(let message): return "无法准备更新：\(message)"
             case .invalidApplication: return "更新包的 Bundle ID 或版本无效"
             case .signatureInvalid(let message): return "更新包签名校验失败：\(message)"
-            case .notInstalledInApplications: return "请先将 Termosaic 安装到 /Applications"
+            case .notInstalledInApplications: return "请先将 TermYes 安装到 /Applications"
             case .applicationsNotWritable: return "/Applications 当前不可写，无法自动替换"
             case .helperMissing: return "更新助手缺失"
             case .httpFailure(let code): return "GitHub 请求失败（HTTP \(code)）"

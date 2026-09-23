@@ -183,7 +183,8 @@ final class AutoContinueController: NSObject, ObservableObject {
         lastAttemptAt = now
 
         guard let result = TerminalManager.shared.sendContinueToTerminalSessions(
-            includeAllWindows: target == .allTerminalWindows
+            includeAllWindows: target == .allTerminalWindows,
+            automatic: automatic
         ) else {
             lastSentCount = nil
             lastStatusMessage = "无法检查 Terminal 会话"
@@ -198,6 +199,11 @@ final class AutoContinueController: NSObject, ObservableObject {
             lastStatusMessage = automatic
                 ? "已自动继续 \(result.sent) 个会话"
                 : "已手动继续 \(result.sent) 个会话"
+            if result.blocked > 0 {
+                lastStatusMessage = (lastStatusMessage ?? "") + "；跳过 \(result.blocked) 个待处理会话"
+            }
+        } else if result.blocked > 0 {
+            lastStatusMessage = "\(result.blocked) 个会话需确认、已拦截或状态不明，未发送文字"
         } else if result.busy > 0 {
             lastStatusMessage = "\(result.busy) 个会话正在运行中，已跳过"
         } else if !automatic {

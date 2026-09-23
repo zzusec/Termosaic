@@ -36,12 +36,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @main
-struct TermosaicApp: App {
+struct TermYesApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var manager = TerminalManager.shared
     @StateObject private var hotKeys = GlobalHotKeyController.shared
     @StateObject private var autoContinue = AutoContinueController.shared
     @StateObject private var updater = UpdateController.shared
+    @StateObject private var agentGuard = AgentGuardController.shared
 
     private var statusText: String {
         switch manager.phase {
@@ -148,6 +149,30 @@ struct TermosaicApp: App {
             }
 
             Divider()
+            Menu("Agent 命令守卫") {
+                Text("危险命令直接拒绝，不自动回答 yes")
+                Text("请先退出对应客户端再安装或恢复")
+                Button(agentGuard.isWorking ? "正在处理…" : "检测守卫配置") {
+                    agentGuard.refresh()
+                }
+                .disabled(agentGuard.isWorking)
+                ForEach(agentGuard.clients) { client in
+                    Menu(client.name) {
+                        Text(client.installed ? "守卫文件已安装（运行状态未验证）" : "尚无 TermYes 安装记录")
+                        Text(client.approvalReason)
+                        Button("安装 / 更新守卫（不改权限）") { agentGuard.install(client) }
+                            .disabled(agentGuard.isWorking)
+                        Button("恢复安装前状态") { agentGuard.uninstall(client) }
+                            .disabled(agentGuard.isWorking || !client.installed)
+                    }
+                }
+                Divider()
+                Text(agentGuard.message)
+                Button("复制操作详情") { agentGuard.copyDetails() }
+                Text("仅管理默认用户目录；既有权限不变")
+                Text("只检查 Shell 命令，不是安全沙箱")
+            }
+
             Menu("自动“继续”") {
                 Toggle(
                     "自动发送“继续”",
@@ -215,11 +240,11 @@ struct TermosaicApp: App {
             }
 
             Divider()
-            Button("退出 Termosaic") {
+            Button("退出 TermYes") {
                 NSApplication.shared.terminate(nil)
             }
         } label: {
-            Label("Termosaic", systemImage: menuBarSymbol)
+            Label("TermYes", systemImage: menuBarSymbol)
         }
         .menuBarExtraStyle(.menu)
     }

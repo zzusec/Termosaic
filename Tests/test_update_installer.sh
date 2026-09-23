@@ -7,8 +7,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-APP="build/Termosaic.app"
-HELPER="$APP/Contents/Helpers/TermosaicUpdateInstaller"
+APP="build/TermYes.app"
+HELPER="$APP/Contents/Helpers/TermYesUpdateInstaller"
 ditto "$APP" "$ROOT/Installed.app"
 ditto "$APP" "$ROOT/Staged.app"
 

@@ -3,17 +3,17 @@ set -euo pipefail
 
 ROOT="${0:A:h}"
 BUILD="$ROOT/build"
-APP="$BUILD/Termosaic.app"
-INSTALL_APP="/Applications/Termosaic.app"
+APP="$BUILD/TermYes.app"
+INSTALL_APP="/Applications/TermYes.app"
 LEGACY_APP="/Applications/Terminal Dashboard.app"
 SDK="$(xcrun --sdk macosx --show-sdk-path)"
-ICONSET="$BUILD/TermosaicIcon.iconset"
+ICONSET="$BUILD/TermYesIcon.iconset"
 
 if [[ -e "$APP" ]]; then /bin/rm -R "$APP"; fi
 if [[ -e "$ICONSET" ]]; then /bin/rm -R "$ICONSET"; fi
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Resources" "$ICONSET" "$ROOT/Resources"
 
-swift "$ROOT/Tools/generate_icon.swift" "$ROOT/Resources/TermosaicIcon-1024.png"
+swift "$ROOT/Tools/generate_icon.swift" "$ROOT/Resources/TermYesIcon-1024.png"
 for spec in \
   "16 icon_16x16.png" \
   "32 icon_16x16@2x.png" \
@@ -27,19 +27,21 @@ for spec in \
   "1024 icon_512x512@2x.png"; do
   size="${spec%% *}"
   name="${spec#* }"
-  sips -z "$size" "$size" "$ROOT/Resources/TermosaicIcon-1024.png" --out "$ICONSET/$name" >/dev/null
+  sips -z "$size" "$size" "$ROOT/Resources/TermYesIcon-1024.png" --out "$ICONSET/$name" >/dev/null
 done
-iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/TermosaicIcon.icns"
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/TermYesIcon.icns"
 
 sources=(
   "$ROOT/Sources/SemanticVersion.swift"
   "$ROOT/Sources/GridLayout.swift"
+  "$ROOT/Sources/TerminalResumePolicy.swift"
+  "$ROOT/Sources/AgentGuardController.swift"
   "$ROOT/Sources/TerminalManager.swift"
   "$ROOT/Sources/GlobalHotKeyController.swift"
   "$ROOT/Sources/AutoContinueController.swift"
   "$ROOT/Sources/WindowSchedulePicker.swift"
   "$ROOT/Sources/UpdateController.swift"
-  "$ROOT/Sources/TermosaicApp.swift"
+  "$ROOT/Sources/TermYesApp.swift"
 )
 
 for arch in arm64 x86_64; do
@@ -51,10 +53,10 @@ for arch in arm64 x86_64; do
     -framework AppKit \
     -framework Combine \
     "${sources[@]}" \
-    -o "$BUILD/Termosaic-$arch"
+    -o "$BUILD/TermYes-$arch"
 done
 
-lipo -create "$BUILD/Termosaic-arm64" "$BUILD/Termosaic-x86_64" -output "$APP/Contents/MacOS/Termosaic"
+lipo -create "$BUILD/TermYes-arm64" "$BUILD/TermYes-x86_64" -output "$APP/Contents/MacOS/TermYes"
 
 for arch in arm64 x86_64; do
   xcrun swiftc \
@@ -63,22 +65,30 @@ for arch in arm64 x86_64; do
     -target "$arch-apple-macos13.0" \
     -O \
     "$ROOT/Sources/UpdateInstaller.swift" \
-    -o "$BUILD/TermosaicUpdateInstaller-$arch"
+    -o "$BUILD/TermYesUpdateInstaller-$arch"
 done
 lipo -create \
-  "$BUILD/TermosaicUpdateInstaller-arm64" \
-  "$BUILD/TermosaicUpdateInstaller-x86_64" \
-  -output "$APP/Contents/Helpers/TermosaicUpdateInstaller"
+  "$BUILD/TermYesUpdateInstaller-arm64" \
+  "$BUILD/TermYesUpdateInstaller-x86_64" \
+  -output "$APP/Contents/Helpers/TermYesUpdateInstaller"
+
+# Installed hooks receive independent copies; they do not depend on this app's lifetime.
+mkdir -p "$APP/Contents/Resources/AgentGuard"
+for file in "$ROOT/AgentGuard/"*.py "$ROOT/AgentGuard/"*.js "$ROOT/AgentGuard/"*.ts \
+            "$ROOT/AgentGuard/chime.wav" "$ROOT/AgentGuard/LICENSE" "$ROOT/AgentGuard/README.md"; do
+  cp "$file" "$APP/Contents/Resources/AgentGuard/"
+done
 
 cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
-chmod +x "$APP/Contents/MacOS/Termosaic" "$APP/Contents/Helpers/TermosaicUpdateInstaller"
-codesign --force --sign - "$APP/Contents/Helpers/TermosaicUpdateInstaller"
+chmod +x "$APP/Contents/MacOS/TermYes" "$APP/Contents/Helpers/TermYesUpdateInstaller"
+codesign --force --sign - "$APP/Contents/Helpers/TermYesUpdateInstaller"
 plutil -lint "$APP/Contents/Info.plist"
 codesign --force --deep --sign - "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
 
 if [[ "${SKIP_INSTALL:-0}" != "1" ]]; then
-  pkill -f '^/Applications/Termosaic.app/Contents/MacOS/Termosaic$' 2>/dev/null || true
+  pkill -f '^/Applications/TermYes.app/Contents/MacOS/TermYes$' 2>/dev/null || true
+  pkill -f '^/Applications/Termosaic.app/Contents/MacOS/(Termosaic|TermYes)$' 2>/dev/null || true
   pkill -f '^/Applications/Terminal Dashboard.app/Contents/MacOS/TerminalDashboard$' 2>/dev/null || true
   if [[ -e "$INSTALL_APP" ]]; then /bin/rm -R "$INSTALL_APP"; fi
   if [[ -e "$LEGACY_APP" ]]; then /bin/rm -R "$LEGACY_APP"; fi

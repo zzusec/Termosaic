@@ -2,7 +2,7 @@ import Darwin
 import Foundation
 
 @main
-struct TermosaicUpdateInstaller {
+struct TermYesUpdateInstaller {
     static func main() {
         let arguments = CommandLine.arguments
         guard arguments.count == 6,
@@ -21,7 +21,7 @@ struct TermosaicUpdateInstaller {
 
         for _ in 0..<300 where kill(parentPID, 0) == 0 { usleep(100_000) }
         if kill(parentPID, 0) == 0 {
-            log("Timed out waiting for Termosaic to exit")
+            log("Timed out waiting for TermYes to exit")
             exit(1)
         }
 

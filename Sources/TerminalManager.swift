@@ -126,12 +126,15 @@ final class TerminalManager: NSObject, ObservableObject {
         retile()
     }
 
-    func sendContinueToTerminalSessions(includeAllWindows: Bool) -> (sent: Int, busy: Int)? {
+    func sendContinueToTerminalSessions(includeAllWindows: Bool, automatic: Bool) -> (sent: Int, busy: Int, blocked: Int)? {
         let sendToAll = includeAllWindows ? "true" : "false"
         let source = """
+        \(TerminalResumePolicy.appleScriptHandlers)
+        set isAutomatic to \(automatic ? "true" : "false")
         set sendToAll to \(sendToAll)
         set sentCount to 0
         set busyCount to 0
+        set blockedCount to 0
         tell application id "com.apple.Terminal"
             repeat with windowRef in every window
                 try
@@ -167,28 +170,28 @@ final class TerminalManager: NSObject, ObservableObject {
 
                         if stillRunning then
                             set busyCount to busyCount + 1
+                        else if my mustPauseResume(tail) then
+                            set blockedCount to blockedCount + 1
+                        else if isAutomatic and not (my canAutomaticallyResume(tail)) then
+                            set blockedCount to blockedCount + 1
                         else
-                            set answer to "继续"
-                            ignoring case
-                                if tail contains "y/n" or tail contains "yes/no" or tail contains "want to continue" or tail contains "输入 yes" or tail contains "是否继续" or tail contains "确认继续" then
-                                    set answer to "yes"
-                                end if
-                            end ignoring
-                            do script answer in activeTab
+                            -- Never answer permission prompts; the agent hook owns approval.
+                            do script "继续" in activeTab
                             set sentCount to sentCount + 1
                         end if
                     end if
                 end try
             end repeat
         end tell
-        return {sentCount, busyCount}
+        return {sentCount, busyCount, blockedCount}
         """
 
         guard let result = executeAppleScript(source),
-              result.numberOfItems == 2,
+              result.numberOfItems == 3,
               let sentCount = result.atIndex(1)?.int32Value,
-              let busyCount = result.atIndex(2)?.int32Value else { return nil }
-        return (sent: Int(sentCount), busy: Int(busyCount))
+              let busyCount = result.atIndex(2)?.int32Value,
+              let blockedCount = result.atIndex(3)?.int32Value else { return nil }
+        return (sent: Int(sentCount), busy: Int(busyCount), blocked: Int(blockedCount))
     }
 
     func prepareForTermination() {

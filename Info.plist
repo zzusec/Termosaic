@@ -5,23 +5,23 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>zh_CN</string>
     <key>CFBundleDisplayName</key>
-    <string>Termosaic</string>
+    <string>TermYes</string>
     <key>CFBundleExecutable</key>
-    <string>Termosaic</string>
+    <string>TermYes</string>
     <key>CFBundleIconFile</key>
-    <string>TermosaicIcon</string>
+    <string>TermYesIcon</string>
     <key>CFBundleIdentifier</key>
     <string>io.github.zzusec.termosaic</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>Termosaic</string>
+    <string>TermYes</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.3.8</string>
+    <string>1.4.0</string>
     <key>CFBundleVersion</key>
-    <string>20</string>
+    <string>21</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>LSApplicationCategoryType</key>
@@ -29,7 +29,7 @@
     <key>LSUIElement</key>
     <true/>
     <key>NSAppleEventsUsageDescription</key>
-    <string>Termosaic needs permission to arrange windows owned by Apple Terminal.</string>
+    <string>TermYes needs permission to arrange windows owned by Apple Terminal.</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSSupportsAutomaticGraphicsSwitching</key>

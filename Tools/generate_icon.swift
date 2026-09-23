@@ -1,6 +1,6 @@
 import AppKit
 
-let output = CommandLine.arguments.dropFirst().first ?? "Resources/TermosaicIcon-1024.png"
+let output = CommandLine.arguments.dropFirst().first ?? "Resources/TermYesIcon-1024.png"
 let size = NSSize(width: 1024, height: 1024)
 let image = NSImage(size: size)
 image.lockFocus()

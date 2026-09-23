@@ -1,198 +1,125 @@
 <div align="center">
-  <img src="Resources/TermosaicIcon-1024.png" width="144" alt="Termosaic 图标">
-  <h1>Termosaic</h1>
-  <p><strong>将系统 Terminal 窗口组合成统一画布的原生 macOS 菜单栏工具。</strong></p>
+  <img src="Resources/TermYesIcon-1024.png" width="128" alt="TermYes 图标">
+  <h1>TermYes</h1>
+  <p><strong>终端统一管理，危险指令及时拦截。</strong></p>
+  <p>面向系统 Terminal 与 Agent 命令守卫的原生 macOS 菜单栏工具。</p>
   <p>
-    <a href="https://github.com/zzusec/Termosaic/actions/workflows/build.yml"><img src="https://github.com/zzusec/Termosaic/actions/workflows/build.yml/badge.svg" alt="构建状态"></a>
-    <img src="https://img.shields.io/badge/macOS-13%2B-black" alt="macOS 13+">
-    <img src="https://img.shields.io/badge/Swift-native-orange" alt="原生 Swift">
+    <a href="https://github.com/zzusec/Termosaic/actions/workflows/build.yml"><img src="https://github.com/zzusec/Termosaic/actions/workflows/build.yml/badge.svg" alt="构建与测试"></a>
+    <img src="https://img.shields.io/badge/macOS-13%2B-black" alt="macOS 13 或更高版本">
+    <img src="https://img.shields.io/badge/Apple_Silicon_%2B_Intel-universal-blue" alt="macOS 通用架构应用">
   </p>
   <p><a href="README.md">English</a> · <strong>简体中文</strong></p>
+  <p><a href="https://github.com/zzusec/Termosaic/releases/latest">下载安装</a> · <a href="RELEASE_NOTES.md">更新说明</a> · <a href="AgentGuard/README.md">守卫详细说明</a></p>
 </div>
 
-Termosaic 管理你已经打开的系统 `Terminal.app` 窗口。它不会替换系统终端、不会嵌入 Shell、不会修改 Terminal 配置，也不会调整其他应用的窗口。
+TermYes 将 **Termosaic 的终端画布**与 **bypass-yes 的命令守卫**整合到一个应用：集中查看现有 Terminal 会话，隐藏窗口但不中断进程，并在菜单栏统一安装或恢复各 Agent 的 Shell 守卫。
+
+> **Yes 不代表无条件放行。** 本版本会硬拒绝命中危险或警告规则的命令，但**不会开启 YOLO，也不会自动批准原生权限请求**。十三类适配器仍需真实客户端端到端验证；客户端已有权限设置保持不变。
 
 ## 主要功能
 
-- 将所有 Terminal 窗口排列成无外边距、无窗口间距的画布。
-- 4 个窗口使用 2×2 布局，6 个窗口使用 3×2 布局。
-- 大约每 0.2 秒检测窗口新增或关闭，并立即重新平铺。
-- 保存稳定的窗口身份，按照顺时针方向分配位置。
-- 平铺前自动恢复最小化的 Terminal 窗口。
-- 将所有 Terminal 窗口作为一个逻辑画布一起显示或隐藏。
-- 切换到其他应用时可以自动隐藏终端画布。
-- 提供可修改的全局呼出快捷键，默认为 `⌘O`。
-- 定时向 Codex/Claude 会话发送“继续”，让额度限制、SSH 或网络中断、卡住的提示都能自动恢复；遇到需要确认的提示会自动回答 yes。
-- 在线检查 GitHub Release，并自动下载、校验、安装和重新启动新版本。
-- 只驻留在顶部菜单栏，不显示 Dock 图标，也没有常驻桌面控制窗口。
-- 同时支持 Apple Silicon 和 Intel Mac。
-
-## 系统要求
-
-- macOS 13 或更高版本。
-- 允许 Termosaic 自动化控制系统 Terminal。
-- 在线检查更新时需要网络连接。
-- 只有从源码构建时才需要 Xcode Command Line Tools。
+- **一张终端画布。** 系统 Terminal 窗口无缝平铺：四个窗口组成 2×2，六个组成 3×2；新增或关闭窗口后自动重排，保持稳定的顺时针顺序。
+- **减少桌面干扰。** 窗口一起显示或隐藏，包含最小化窗口，内部进程继续运行。不显示 Dock 图标，不嵌入 Shell，不创建常驻控制窗口，也不调整其他应用的窗口。
+- **快捷键呼出。** 可配置全局快捷键，默认 `⌘O`；若要保留其他应用的“打开”命令，请修改它。
+- **保守恢复任务。** 定时识别部分额度或网络中断并尝试发送“继续”；识别出的确认提示、守卫拒绝、密码提示及未知自动恢复状态会跳过，**不再自动输入 `yes`**。
+- **统一管理守卫。** 在菜单栏逐客户端安装、更新或恢复守卫，不改变其权限模式、模型、Shell 别名或沙箱设置。
+- **应用内更新。** 下载对应版本的安装包，验证校验和与应用签名，保留备份后替换并重新启动。
 
 ## 安装
 
-从 [GitHub Releases](https://github.com/zzusec/Termosaic/releases/latest) 下载最新安装包：
+支持 **macOS 13+**，同时提供 Apple Silicon 与 Intel 架构。
 
-1. 打开 `Termosaic-vX.Y.Z-macOS.dmg`。
-2. 将 `Termosaic.app` 拖到 `Applications` 快捷方式。
-3. 社区版本使用 ad-hoc 签名，尚未经过 Apple notarization。首次打开时，macOS 可能要求使用 **按住 Control 点击 → 打开**。
+1. 从 [GitHub Releases](https://github.com/zzusec/Termosaic/releases/latest) 下载 **`TermYes-v1.4.0-macOS.dmg`**。
+2. 打开安装包，将 **TermYes.app** 拖入 **Applications**。
+3. 启动 TermYes，按提示允许控制 Terminal：
+   **系统设置 → 隐私与安全性 → 自动化 → TermYes → Terminal**。
+4. 点击菜单栏四宫格图标，显示终端画布。
 
-应用安装位置：
+社区版本采用 ad-hoc 签名，尚未经过 Apple 公证。如果 macOS 阻止首次启动，请在确认信任该版本后使用系统针对该应用的“仍要打开”流程；不需要关闭系统级安全保护。
 
-```text
-/Applications/Termosaic.app
-```
+窗口管理功能不需要 Python 或 Node.js。可选的**命令守卫模块**需要可用的 `/usr/bin/python3`，开发机上由 Xcode Command Line Tools 提供；应用不会自动安装依赖。在线更新需要网络连接。
 
-## 权限设置
+### 从 Termosaic 升级
 
-首次运行时，请允许 Termosaic 控制 Terminal：
+TermYes 是新的产品名称；GitHub 仓库暂保留 **`zzusec/Termosaic`**，确保既有更新地址继续工作。
 
-```text
-系统设置 → 隐私与安全性 → 自动化 → Termosaic → Terminal
-```
+- Bundle ID、已保存偏好、守卫运行目录和恢复记录沿用原标识，不因改名主动清空；macOS 仍可能再次请求自动化权限。
+- Release 同时提供主安装包与 **`Termosaic-v1.4.0-macOS.dmg` 旧版更新兼容包**。二者包含相同的已签名 TermYes 应用，仅外层应用目录名对应不同更新器的预期。
+- 自动升级后，安装目录可能仍叫 `Termosaic.app`，应用显示名称则为 **TermYes**。请勿同时运行新旧两个副本。
+- 安装守卫不会删除原 bypass-yes 仓库；新安装的运行文件不再依赖该仓库。
 
-该权限只在本机用于统计、恢复、移动、调整 Terminal 窗口，以及发送用户明确配置的文字。
+## 使用终端画布
 
-## 使用方法
+| 菜单操作 | 快捷键 |
+| --- | --- |
+| 显示或隐藏终端画布 | `⌥⌘1` |
+| 在鼠标所在显示器重新平铺 | `⌥⌘2` |
+| 手动尝试发送一次“继续” | `⌥⌘3` |
+| 全局呼出并重新平铺 | 默认 `⌘O`，可修改 |
 
-1. 打开 Termosaic，顶部菜单栏会出现四宫格图标。
-2. 勾选 **显示终端画布**，显示并排列所有 Terminal 窗口。
-3. 在 Terminal 中按 `⌘N` 新建窗口，或关闭已有窗口，画布会自动更新。
-4. 切换到其他应用时，终端画布可以自动隐藏；也可以手动取消勾选 **显示终端画布**。
-5. Terminal 窗口隐藏后，其中的命令仍会继续运行。
+切换到其他应用时会隐藏画布；隐藏窗口不会停止窗口内的进程。TermYes **只管理 Apple 系统 Terminal.app**，不管理 iTerm2 或其他终端模拟器。
 
-## 顺时针窗口顺序
+自动“继续”默认开启，间隔 30 分钟。**自动“继续”**子菜单可设置 5–120 分钟的间隔、会话范围，以及从指定时间开始的五小时周期。默认通过窗口标题或进程列表中的 `Codex` / `Claude` 匹配会话。
 
-窗口顺序不会因为点击或切换焦点而改变。新窗口会追加到顺时针序列末尾；关闭窗口后，剩余窗口保持相对顺序并立即补位。
+尾屏文字识别是启发式，不是可靠的会话状态接口，可能漏判或保守暂停，也不能保证恢复进程崩溃。尤其谨慎使用“所有 Terminal 窗口”的手动发送：普通 Shell 可能把“继续”当成命令执行。
 
-4 个窗口：
+## Agent 命令守卫
 
-```text
-左上 → 右上 → 右下 → 左下
-```
+菜单栏 → **Agent 命令守卫 → 检测守卫配置** → 选择客户端。**安装、更新或恢复前，请退出对应客户端**，完成后重新启动；Codex 还需要在 `/hooks` 中检查并信任新 Hook。
 
-6 个窗口：
+内置适配器覆盖 Claude Code、Codex、CodeBuddy、zcode、pi、Qoder、Gemini CLI、Cursor、agy、OpenCode、Factory droid、Crush 和 GitHub Copilot CLI。
 
-```text
-左上 → 上中 → 右上 → 右下 → 下中 → 左下
-```
+### 策略与当前状态
 
-## 快捷键
+| 情况 | TermYes 的处理 |
+| --- | --- |
+| 命中危险或警告规则 | 直接拒绝，不弹确认 |
+| 输入无效，或捕获到守卫/桥接错误 | 返回拒绝，不静默放行 |
+| 未命中危险规则 | 交回客户端原有权限流程 |
+| 尚未通过真实客户端验证 | 不启用自动批准 |
+| 安装后文件被外部修改 | 拒绝自动覆盖或恢复 |
 
-全局快捷键：
+**“已安装”不等于“正在受保护”。** 所有适配器目前均处于真实客户端待验证状态；Copilot 的宿主超时处理与 agy 的 turbo 模式存在已知或尚未解决的兼容性问题。Hook 未加载、未信任、被禁用或宿主超时，都可能使守卫失效。
 
-- `⌘O`：从任何应用呼出并立即重新平铺所有 Terminal 窗口
-- 可以改为 `⌥⌘O`、`⇧⌘O` 或 `⌃⌥⌘O`
-- 也可以关闭全局快捷键
+这是 **Shell 命令文本的事故防护层，不是沙箱**。它无法完整理解任意 Python、SQL、远程程序、别名或脚本的实际行为，也不拦截独立的文件编辑或 MCP 工具。`safe` 只表示“未命中规则”，不是“已经证明安全”。
 
-菜单快捷键：
+安装器合并默认用户级配置、保留其他 Hook，并保存私有恢复记录；不启用或关闭用户原有 YOLO 设置。不管理自定义配置根目录或项目级配置。路径、错误边界和命令行用法见[守卫文档](AgentGuard/README.md)。
 
-- `⌥⌘1`：显示或隐藏画布
-- `⌥⌘2`：在鼠标所在显示器重新平铺
-- `⌥⌘3`：立即发送一次“继续”，不用等到下一次定时
+## 源码构建与测试
 
-自动“继续”的间隔与范围在自动“继续”子菜单里；**激活 5h 窗口** 会打开一个小时间面板，起始时间用滚动选择（一格 5 分钟，⇧ 滚动按小时）。更新仍留在顶层一行。切换到其他应用时隐藏画布、退出时隐藏 Terminal 两项始终开启。
+构建需要 Xcode Command Line Tools。守卫测试使用 Python；插件测试需要已安装、支持 `node:module.stripTypeScriptTypes` 的 Node.js，CI 使用 Node.js 24。
 
-> `⌘O` 通常是 macOS 应用的“打开”命令。如果需要保留该功能，请选择其他全局快捷键。
-
-## 自动“继续”
-
-Termosaic 会定时恢复匹配的 Codex/Claude Terminal 会话，让任务自己跑回来——不管打断它的是什么：额度限制界面、SSH 或网络断开、前台进程崩掉，还是卡在等待输入的提示。
-
-每个符合范围的会话都会收到“继续”。如果会话其实在等确认（`(y/n)`、`yes/no`、`是否继续` 这类提示），Termosaic 会改为回答 `yes`，先把卡住的地方放行。
-
-正在运行的会话会被跳过：尾屏出现活动 spinner 或 `esc to interrupt` 时不会发送，避免在跑着的任务上打字。
-
-默认只作用于标题或进程包含 `Codex`、`Claude` 的会话，普通 Shell 不受影响。
-
-- 默认开启
-- 默认检查间隔：30 分钟
-- 可选间隔：5、10、15、30、45、60 或 120 分钟
-- 可选 **激活 5h 窗口**：起始时间可以任意指定（时分），Termosaic 还会在每个 5 小时窗口开始时恢复一次，例如 05:00，之后 10:00、15:00…
-- 安全默认范围：标题或进程包含 `Codex`、`Claude` 的会话
-- 可选范围：所有 Terminal 窗口
-- `⌥⌘3` 立即发送一次，不用等到下一次定时
-- 所有设置都会在重新启动后保留
-
-请谨慎使用“所有 Terminal 窗口”，普通 Shell 可能会把“继续”或 `yes` 当成命令执行。
-
-## 在线自动更新
-
-Termosaic 会在启动后检查最新 GitHub Release，之后每 6 小时检查一次，发现新版本即自动下载安装。菜单里只保留当前版本和 **检查更新** 两项。
-
-所有更新信息和操作都保留在菜单栏内部，不会显示遮挡工作的桌面更新弹窗。
-
-替换应用前，Termosaic 会：
-
-1. 通过 HTTPS 下载带版本号的 DMG 和对应 `.sha256` 文件。
-2. 验证 DMG 的 SHA-256。
-3. 以只读方式挂载 DMG。
-4. 验证 Bundle ID 为 `io.github.zzusec.termosaic`，并验证版本更高且与 Release 一致。
-5. 执行递归严格 `codesign` 校验。
-6. 启动独立的 Universal 更新助手。
-7. 在不隐藏 Terminal 任务的情况下退出 Termosaic，备份旧版本、安装新版本并重新启动。
-8. 如果替换或重新启动失败，自动恢复旧版本。
-
-自动安装要求 Termosaic 位于 `/Applications/Termosaic.app`，并且当前用户有权限写入该应用。
-
-> 在线自动更新从 Termosaic 1.2.0 开始提供。更旧版本需要先手动升级一次到 1.2.0 或更高版本。
-
-## 从源码构建
-
-```bash
-./build.sh
-```
-
-只构建、不安装：
-
-```bash
+```sh
+# 只构建，不替换已安装应用。
 SKIP_INSTALL=1 ./build.sh
-```
 
-## 创建 DMG
-
-```bash
-./build.sh
+# 生成主安装包、旧版兼容包及可移植的 SHA-256 校验文件。
 ./create-dmg.sh
+/usr/bin/python3 -B Tests/test_release.py
 ```
 
-生成的 DMG、zip 压缩包和 SHA-256 文件位于 `dist/`。
+应用位于 `build/TermYes.app`；安装包和校验文件位于 `dist/`。直接运行 `./build.sh`、**不设置** `SKIP_INSTALL=1` 时，会安装到 `/Applications/TermYes.app`。
 
-## 测试
-
-窗口布局测试：
-
-```bash
-swiftc Sources/GridLayout.swift Tests/main.swift -o /tmp/termosaic-grid-tests
-/tmp/termosaic-grid-tests
+```sh
+PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -B Tests/test_agent_guard.py
+bash AgentGuard/test.sh
+PYTHONDONTWRITEBYTECODE=1 bash AgentGuard/test-codex.sh
+node Tests/test_guard_plugins.mjs
+swiftc Sources/TerminalResumePolicy.swift Tests/TerminalResumeTests.swift -o /tmp/termyes-resume-tests
+/tmp/termyes-resume-tests
+swiftc Sources/GridLayout.swift Tests/main.swift -o /tmp/termyes-grid-tests
+/tmp/termyes-grid-tests
+swiftc Sources/SemanticVersion.swift Tests/VersionTests.swift -o /tmp/termyes-version-tests
+/tmp/termyes-version-tests
+bash Tests/test_update_installer.sh
 ```
 
-语义版本测试：
+守卫测试只分类命令字符串，不执行危险指令。插件测试模拟宿主 API，不代表真实客户端 YOLO 模式已通过验证。发布测试只读挂载安装包，并在临时副本上测试更新器，不启动应用。
 
-```bash
-swiftc Sources/SemanticVersion.swift Tests/VersionTests.swift -o /tmp/termosaic-version-tests
-/tmp/termosaic-version-tests
-```
+## 更新、隐私与许可
 
-构建完成后测试更新助手：
+TermYes 在启动后及之后每六小时检查公开 GitHub Release。自动替换要求应用位于 `/Applications` 下，且当前用户有写入权限。校验和及递归严格 `codesign` 验证用于检测包损坏或不一致；ad-hoc 签名不等于 Apple 开发者身份认证。
 
-```bash
-Tests/test_update_installer.sh
-```
+没有分析统计、账户体系、广告或遥测。应用联网仅用于公开版本检查与下载；守卫安装和 Terminal 自动化都在本地进行。恢复记录可能含已有客户端配置中的敏感值，请勿分享。
 
-## 系统 Terminal 的限制
-
-Termosaic 不会修改或注入代码到 `Terminal.app`。因此，独立的系统 Terminal 窗口仍然会保留带红、黄、绿按钮的 macOS 标题栏。Termosaic 会移除自己的布局外边距，并让完整窗口边缘紧贴排列。
-
-## 隐私
-
-Termosaic 没有分析统计、账户系统、广告或遥测。网络只用于查询和下载 Termosaic GitHub 仓库中的公开 Release。所有 Terminal 自动化操作都只在本机执行。
-
-## 开源协议
-
-Termosaic 使用 [MIT License](LICENSE) 开源。
+采用 [MIT 许可](LICENSE)，迁入的守卫模块保留其[原始 MIT 许可](AgentGuard/LICENSE)。

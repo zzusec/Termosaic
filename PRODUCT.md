@@ -1,14 +1,14 @@
-# Termosaic — Product
+# TermYes — Product
 
 <!-- impeccable:product-schema 1 -->
 
 ## Platform
 
-Termosaic is a native macOS menu-bar utility.
+TermYes is a native macOS menu-bar utility.
 
 ## Stack
 
-Swift 6, SwiftUI, AppKit, and Apple Events automation. No third-party runtime dependencies.
+Swift 6, SwiftUI, AppKit, and Apple Events automation. No third-party runtime dependencies for window management; the optional Agent guard requires /usr/bin/python3 from Xcode Command Line Tools.
 
 ## Primary User
 
@@ -28,14 +28,16 @@ Show every existing Terminal.app shell window as one balanced wall on the curren
 - Treat Terminal windows as one logical canvas and optionally hide the canvas when another application becomes active.
 - Never reposition windows belonging to other applications.
 - Remain available only from the macOS menu bar, with no Dock icon or desktop control window.
-- Check public GitHub Releases online and securely stage, validate, replace, and relaunch newer Termosaic versions.
+- Check public GitHub Releases online and securely stage, validate, replace, and relaunch newer TermYes versions.
 - Provide a persisted, configurable global shortcut that shows and forcibly re-tiles the complete Terminal mosaic.
-- Optionally resume matching Codex/Claude Terminal sessions on a persisted interval, sending “继续” so any interruption recovers and answering `yes` when a confirmation prompt blocks the session.
+- Optionally attempt “继续” for recognized quota/network interruptions in matching Codex/Claude Terminal sessions; skip recognized confirmation/guard-denial prompts and unknown automatic-resume states. Never automatically answer `yes`.
+- Bundle thirteen shell-guard adapters from bypass-yes with per-client installation and exact restore; dangerous/warning rules and captured input/bridge errors deny.
+- Keep automatic-approval capability closed for all clients pending real-client validation; preserve existing user permission settings. Installed files alone are not proof of runtime protection.
 
 ## Durable Constraints
 
 - Existing Terminal sessions remain owned by Terminal.app; the utility does not embed or migrate shells.
-- Window movement requires permission for Termosaic to automate Apple Terminal.
+- Window movement requires permission for TermYes to automate Apple Terminal.
 - Interacting with a tiled terminal naturally makes Terminal.app the active application; the manager remains available from its menu-bar item.
 - The utility must not require a third-party window manager or terminal emulator.
 
